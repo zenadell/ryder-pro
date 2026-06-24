@@ -216,6 +216,15 @@ class Job(models.Model):
     def __str__(self):
         return self.title
 
+import os
+from django.core.files.storage import FileSystemStorage
+
+if os.environ.get('CLOUDINARY_CLOUD_NAME'):
+    from cloudinary_storage.storage import RawMediaCloudinaryStorage
+    RAW_STORAGE = RawMediaCloudinaryStorage()
+else:
+    RAW_STORAGE = FileSystemStorage()
+
 class JobApplication(models.Model):
     STATUS_CHOICES = [
         ('submitted', 'Submitted'),
@@ -228,7 +237,7 @@ class JobApplication(models.Model):
     full_name = models.CharField(max_length=255)
     email = models.EmailField()
     phone = models.CharField(max_length=50)
-    resume = models.FileField(upload_to='resumes/')
+    resume = models.FileField(upload_to='resumes/', storage=RAW_STORAGE)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='submitted')
     submitted_at = models.DateTimeField(auto_now_add=True)
 
@@ -250,9 +259,9 @@ class FinancingApplication(models.Model):
     country = models.CharField(max_length=100)
     address = models.TextField()
     
-    government_id_file = models.FileField(upload_to='financing/ids/')
-    drivers_license_file = models.FileField(upload_to='financing/licenses/')
-    proof_of_income_file = models.FileField(upload_to='financing/income/')
+    government_id_file = models.FileField(upload_to='financing/ids/', storage=RAW_STORAGE)
+    drivers_license_file = models.FileField(upload_to='financing/licenses/', storage=RAW_STORAGE)
+    proof_of_income_file = models.FileField(upload_to='financing/income/', storage=RAW_STORAGE)
     
     employment_details = models.TextField()
     business_details = models.TextField(blank=True, null=True)

@@ -45,12 +45,12 @@ def signup_view(request):
     return render(request, 'accounts/signup.html', {'form': form})
 
 def oauth_login(request, provider):
-    supabase = get_supabase(request)
-    if not supabase:
-        messages.error(request, "Supabase is not configured.")
-        return redirect('login')
-        
     try:
+        supabase = get_supabase(request)
+        if not supabase:
+            messages.error(request, "Supabase is not configured.")
+            return redirect('login')
+            
         res = supabase.auth.sign_in_with_oauth({
             "provider": provider,
             "options": {
@@ -59,14 +59,15 @@ def oauth_login(request, provider):
         })
         return redirect(res.url)
     except Exception as e:
-        messages.error(request, f"Failed to connect to {provider}: {str(e)}")
+        import traceback
+        messages.error(request, f"OAuth Login Error: {str(e)} | Trace: {traceback.format_exc()[:200]}")
         return redirect('login')
 
 def oauth_callback(request):
-    supabase = get_supabase(request)
-    code = request.GET.get('code')
-    if code and supabase:
-        try:
+    try:
+        supabase = get_supabase(request)
+        code = request.GET.get('code')
+        if code and supabase:
             res = supabase.auth.exchange_code_for_session({"auth_code": code})
             if res.user:
                 email = res.user.email
@@ -78,8 +79,9 @@ def oauth_callback(request):
                 login(request, user, backend='django.contrib.auth.backends.ModelBackend')
                 messages.success(request, 'Successfully logged in!')
                 return redirect('dashboard')
-        except Exception as e:
-            messages.error(request, f"Authentication failed: {str(e)}")
-            return redirect('login')
-            
-    return render(request, 'accounts/oauth_callback.html')
+                
+        return render(request, 'accounts/oauth_callback.html')
+    except Exception as e:
+        import traceback
+        messages.error(request, f"OAuth Callback Error: {str(e)} | Trace: {traceback.format_exc()[:200]}")
+        return redirect('login')

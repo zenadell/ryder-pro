@@ -158,15 +158,15 @@ CLOUDINARY_STORAGE = {
 }
 STORAGES = {
     "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "BACKEND": "ryder_pro.storage.CustomMediaCloudinaryStorage",
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
 
 if os.environ.get('CLOUDINARY_CLOUD_NAME'):
-    STORAGES["default"]["BACKEND"] = "cloudinary_storage.storage.MediaCloudinaryStorage"
+    STORAGES["default"]["BACKEND"] = "ryder_pro.storage.CustomMediaCloudinaryStorage"
 
 WHITENOISE_MANIFEST_STRICT = False
 

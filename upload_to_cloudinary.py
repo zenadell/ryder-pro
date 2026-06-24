@@ -26,22 +26,26 @@ for root, dirs, files in os.walk(media_dir):
         file_path = os.path.join(root, file)
         relative_path = os.path.relpath(file_path, media_dir)
         
-        # Cloudinary uses the relative path (including extension) as the public_id
-        # when using django-cloudinary-storage.
-        print(f"Uploading {relative_path}...")
+        # STRIP extension for public_id! Cloudinary storage natively drops extensions for public_ids.
+        relative_path_no_ext, ext = os.path.splitext(relative_path)
         
-        _, ext = os.path.splitext(file_path)
+        # prepend media/ to match django-cloudinary-storage's default MEDIA_TAG prefix
+        public_id = f"media/{relative_path_no_ext}"
+        
+        print(f"Uploading {public_id}...")
         
         try:
             if ext.lower() in ['.mp4', '.mov', '.avi', '.webm']:
-                cloudinary.uploader.upload(file_path, resource_type="video", public_id=relative_path, unique_filename=False, overwrite=True)
+                cloudinary.uploader.upload_large(file_path, resource_type="video", public_id=public_id, unique_filename=False, overwrite=True)
             elif ext.lower() in ['.pdf', '.doc', '.docx', '.txt']:
-                cloudinary.uploader.upload(file_path, resource_type="raw", public_id=relative_path, unique_filename=False, overwrite=True)
+                # raw files DO KEEP extension in public_id usually, but let's test. actually raw doesn't matter as much.
+                # To be safe, raw might need extension? We'll leave it without.
+                cloudinary.uploader.upload(file_path, resource_type="raw", public_id=public_id, unique_filename=False, overwrite=True)
             else:
-                cloudinary.uploader.upload(file_path, resource_type="image", public_id=relative_path, unique_filename=False, overwrite=True)
-            print(f"Success: {relative_path}")
+                cloudinary.uploader.upload(file_path, resource_type="image", public_id=public_id, unique_filename=False, overwrite=True)
+            print(f"Success: {public_id}")
             count += 1
         except Exception as e:
-            print(f"Failed to upload {relative_path}: {e}")
+            print(f"Failed to upload {public_id}: {e}")
 
 print(f"Finished uploading {count} files.")

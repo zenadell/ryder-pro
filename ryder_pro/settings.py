@@ -92,10 +92,12 @@ DATABASES = {
     'default': dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
         env='SUPABASE_DB_URL',
-        conn_max_age=600,
+        conn_max_age=0,
         conn_health_checks=True,
     )
 }
+if 'SUPABASE_DB_URL' in os.environ:
+    DATABASES['default']['OPTIONS'] = {'DISABLE_SERVER_SIDE_CURSORS': True}
 
 
 # Password validation

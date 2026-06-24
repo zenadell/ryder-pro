@@ -1,0 +1,60 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}AI Bulk Vehicle Importer | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <h1>AI Bulk Vehicle Importer</h1>
+    <p>Paste a list of vehicles separated by commas. The AI will automatically generate specifications, pricing, descriptions, and fetch high-quality images for each car.</p>
+    
+    <div style="margin-bottom: 20px; background: #eef; padding: 15px; border-radius: 5px;">
+        <strong>Note:</strong> Make sure you have at least one active Gemini API Key registered in the <a href="{% url 'admin:core_geminiapikey_changelist' %}">Gemini API Keys</a> section to avoid errors.
+    </div>
+
+    <form method="POST" action="">
+        {% csrf_token %}
+        <div>
+            <label style="display: block; font-weight: bold; margin-bottom: 10px;">Enter Car Names (comma separated):</label>
+            <textarea name="car_list" rows="10" style="width: 100%; max-width: 800px; padding: 10px; font-family: monospace;" placeholder="e.g. 2023 Porsche 911 Carrera, 2021 Toyota Camry SE, Tesla Model S Plaid">{{ car_list_text }}</textarea>
+        </div>
+        <div style="margin-top: 20px;">
+            <button type="submit" class="button" style="padding: 10px 20px; font-size: 16px; background-color: #417690; color: white; border: none; cursor: pointer; border-radius: 4px;">
+                Generate Vehicles
+            </button>
+        </div>
+    </form>
+
+    {% if results %}
+    <div style="margin-top: 40px;">
+        <h2>Import Results</h2>
+        <table style="width: 100%; max-width: 800px; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="text-align: left; padding: 10px; border-bottom: 2px solid #ddd;">Vehicle</th>
+                    <th style="text-align: left; padding: 10px; border-bottom: 2px solid #ddd;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for result in results %}
+                <tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;">{{ result.name }}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #eee;">
+                        {% if result.status == 'success' %}
+                            <span style="color: green; font-weight: bold;">✅ Success</span>
+                        {% else %}
+                            <span style="color: red; font-weight: bold;">❌ {{ result.status }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <div style="margin-top: 20px;">
+            <a href="{% url 'admin:core_vehicle_changelist' %}" class="button">View all Vehicles</a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

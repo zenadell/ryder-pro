@@ -1,0 +1,66 @@
+/* Sleek modern design for the category filter */
+.car-rental-link-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 30px;
+    margin-bottom: 40px;
+    padding: 0;
+}
+
+.car-rental-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+}
+
+.car-rental-link {
+    background: #ffffff !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-radius: 50px !important;
+    padding: 10px 24px !important;
+    font-size: 15px !important;
+    font-weight: 500 !important;
+    color: #333333 !important;
+    text-decoration: none !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02) !important;
+    min-width: unset !important;
+    height: auto !important;
+}
+
+.car-rental-link:hover {
+    background: #111111 !important;
+    color: #ffffff !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1) !important;
+    border-color: #111111 !important;
+}
+
+.car-rental-link.w--current {
+    background: #111111 !important;
+    color: #ffffff !important;
+    border-color: #111111 !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important;
+}
+
+.car-rental-link div {
+    color: inherit !important;
+    font-family: inherit !important;
+}
+
+/* Fix flex layout for dyn-list container if needed */
+.w-dyn-list {
+    display: flex;
+    justify-content: center;
+    width: auto;
+}

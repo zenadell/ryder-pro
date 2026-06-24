@@ -1,0 +1,42 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Application Submitted | Ryder Pro</title>
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <link href="{% static 'css/vendor/carent-wbs.webflow.shared.15fbda294.css' %}" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" href="{% static 'base.css' %}">
+    <link rel="stylesheet" href="{% static 'contact/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/vendor/fonts.css' %}">
+</head>
+<body>
+    {% include 'partials/navbar.html' %}
+    
+    <section class="contact-hero-section section-spacing">
+        <div class="w-layout-blockcontainer container w-container" style="max-width: 600px; margin: 0 auto; text-align: center;">
+            <div style="margin-bottom: 30px;">
+                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#28a745" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+            </div>
+            
+            <h1 class="heading-lg">Application Submitted!</h1>
+            
+            <p style="font-size: 18px; margin-top: 20px; line-height: 1.6;">
+                Thank you for applying for the <strong>{{ job.title }}</strong> position. 
+                Our team will review your resume and be in touch with you shortly.
+            </p>
+            
+            <div style="margin-top: 40px;">
+                <a href="{% url 'jobs_list' %}" class="button-submit contact-button w-button" style="display: inline-block;">View More Jobs</a>
+                <br><br>
+                <a href="{% url 'home' %}" style="color: var(--color--primary-1);">Go back Home</a>
+            </div>
+        </div>
+    </section>
+
+    {% include 'partials/footer.html' %}
+</body>
+</html>

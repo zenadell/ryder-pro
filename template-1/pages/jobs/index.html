@@ -1,0 +1,82 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Careers & Jobs | Ryder Pro</title>
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <link href="{% static 'css/vendor/carent-wbs.webflow.shared.15fbda294.css' %}" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" href="{% static 'base.css' %}">
+    <link rel="stylesheet" href="{% static 'contact/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/vendor/fonts.css' %}">
+    <style>
+        .job-card {
+            padding: 30px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+        .job-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .job-title {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #111;
+        }
+        .job-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 15px;
+        }
+        .job-meta span {
+            background-color: #f1f1f1;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    {% include 'partials/navbar.html' %}
+    
+    <section class="contact-hero-section section-spacing">
+        <div class="w-layout-blockcontainer container w-container">
+            <div class="contact-hero-title-wrap" style="text-align: center; max-width: 600px; margin: 0 auto 50px;">
+                <h1 class="heading-lg">Join Our Team</h1>
+                <p>We are always looking for driven professionals to join our transportation and logistics network. Explore our open roles below.</p>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 30px;">
+                {% for job in jobs %}
+                    <a href="{% url 'job_detail' job.id %}" class="job-card">
+                        <div class="job-title">{{ job.title }}</div>
+                        <div class="job-meta">
+                            <span>{{ job.category }}</span>
+                            <span>{{ job.location }}</span>
+                        </div>
+                        <p style="color: #666; font-size: 15px; line-height: 1.5; margin-bottom: 20px;">
+                            {{ job.description|truncatewords:20 }}
+                        </p>
+                        <div style="color: var(--color--primary-1); font-weight: 500;">View Details & Apply &rarr;</div>
+                    </a>
+                {% empty %}
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 50px; background: #f9f9f9; border-radius: 8px;">
+                        <h3 style="margin-bottom: 10px;">No open positions</h3>
+                        <p style="color: #666;">We currently don't have any open positions. Please check back later!</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    {% include 'partials/footer.html' %}
+</body>
+</html>

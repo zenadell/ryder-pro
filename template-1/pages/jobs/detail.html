@@ -1,0 +1,108 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>{{ job.title }} | Careers at Ryder Pro</title>
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <link href="{% static 'css/vendor/carent-wbs.webflow.shared.15fbda294.css' %}" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" href="{% static 'base.css' %}">
+    <link rel="stylesheet" href="{% static 'contact/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/vendor/fonts.css' %}">
+    <style>
+        .job-detail-grid {
+            display: grid;
+            grid-template-columns: 3fr 2fr;
+            gap: 50px;
+            margin-top: 40px;
+        }
+        @media screen and (max-width: 991px) {
+            .job-detail-grid { grid-template-columns: 1fr; }
+        }
+        .job-meta-tags {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .job-meta-tags span {
+            background-color: #f1f1f1;
+            padding: 8px 15px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .job-content h3 { margin-top: 30px; margin-bottom: 15px; }
+        .job-content p { line-height: 1.6; color: #444; margin-bottom: 20px; }
+        .errorlist { color: #d9534f; list-style-type: none; padding-left: 0; font-size: 14px; margin-top: 5px; }
+    </style>
+</head>
+<body>
+    {% include 'partials/navbar.html' %}
+    
+    <section class="contact-hero-section section-spacing">
+        <div class="w-layout-blockcontainer container w-container">
+            <div style="margin-bottom: 20px;">
+                <a href="{% url 'jobs_list' %}" style="color: #666; text-decoration: none;">&larr; Back to all jobs</a>
+            </div>
+            
+            <h1 class="heading-lg" style="margin-bottom: 15px;">{{ job.title }}</h1>
+            <div class="job-meta-tags">
+                <span>{{ job.category }}</span>
+                <span>{{ job.location }}</span>
+                {% if job.salary_range %}<span>{{ job.salary_range }}</span>{% endif %}
+            </div>
+            
+            <div class="job-detail-grid">
+                <!-- Left Column: Details -->
+                <div class="job-content">
+                    <h3>About the Role</h3>
+                    <p>{{ job.description|linebreaksbr }}</p>
+                    
+                    <h3>Requirements</h3>
+                    <p>{{ job.requirements|linebreaksbr }}</p>
+                </div>
+                
+                <!-- Right Column: Application Form -->
+                <div>
+                    <div class="contact-form-wrapper" style="padding: 30px; background-color: #fff; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
+                        <h3 style="margin-bottom: 20px;">Apply for this position</h3>
+                        
+                        <div class="w-form">
+                            <form method="POST" enctype="multipart/form-data" action="{% url 'job_detail' job.id %}">
+                                {% csrf_token %}
+                                
+                                <div class="input-group">
+                                    <label for="{{ form.full_name.id_for_label }}">Full Name *</label>
+                                    {{ form.full_name }}
+                                    {{ form.full_name.errors }}
+                                </div>
+                                <div class="input-group" style="margin-top: 15px;">
+                                    <label for="{{ form.email.id_for_label }}">Email Address *</label>
+                                    {{ form.email }}
+                                    {{ form.email.errors }}
+                                </div>
+                                <div class="input-group" style="margin-top: 15px;">
+                                    <label for="{{ form.phone.id_for_label }}">Phone Number *</label>
+                                    {{ form.phone }}
+                                    {{ form.phone.errors }}
+                                </div>
+                                <div class="input-group" style="margin-top: 15px;">
+                                    <label for="{{ form.resume.id_for_label }}" style="margin-bottom: 5px;">Upload Resume (PDF/Doc) *</label>
+                                    {{ form.resume }}
+                                    {{ form.resume.errors }}
+                                </div>
+                                
+                                <div style="margin-top: 30px;">
+                                    <input type="submit" class="button-submit contact-button w-button" value="Submit Application" style="width: 100%;" />
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {% include 'partials/footer.html' %}
+</body>
+</html>

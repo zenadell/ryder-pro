@@ -1,0 +1,122 @@
+{% load static %}
+<footer class="footer">
+        <div class="footer-wrapper">
+            <div class="w-layout-blockcontainer container w-container">
+                <div class="w-layout-grid grid-footer">
+                    <div class="footer-logo-wrap">
+                        <a aria-label="Link" href="/" class="footer-logo-link w-inline-block"> <img
+                                src="{% static 'images/675016b17f87305f89931031_carrent.svg' %}"
+                                loading="lazy" alt="" class="footer-logo" />
+                        </a>
+                        <div class="footer-subscribe-wrap">
+                            <h2 class="footer-title">
+                                Subscribe to our newsletter
+                            </h2>
+                            
+                            {% if messages %}
+                            <div style="margin-bottom: 20px;">
+                                {% for message in messages %}
+                                    <div style="padding: 10px; border-radius: 5px; {% if message.tags == 'success' %}background-color: #d4edda; color: #155724;{% else %}background-color: #f8d7da; color: #721c24;{% endif %}">
+                                        {{ message }}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            <div class="no-margin-bottom w-form">
+
+                                <form id="wf-form-Footer-Subscribe-Form" name="wf-form-Footer-Subscribe-Form"
+                                    data-name="Footer Subscribe Form" method="POST" action="{% url 'subscribe' %}" class="footer-form-wrap"
+                                    
+                                    >
+{% csrf_token %}
+                                    <input class="form-input footer-input w-input" maxlength="256" name="email"
+                                        data-name="Footer Email" placeholder="Enter your email address" type="email"
+                                        id="Footer-Email" required="" />
+                                    <input type="submit" data-wait="Please wait..."
+                                        class="button-submit footer-button w-button" value="Subscribe!" />
+                                </form>
+                                <div class="success-message w-form-done">
+                                    <div>
+                                        Thank you! Your submission has been received!
+                                    </div>
+                                </div>
+                                <div class="error-message w-form-fail">
+                                    <div>
+                                        Oops! Something went wrong while submitting the form.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="w-layout-grid grid-footer-right">
+                        <div>
+                            <h2 class="footer-title">
+                                Pages
+                            </h2>
+                            <div class="footer-link-wrap">
+                                <a href="/" aria-current="page" class="footer-link w--current"> Home
+                                </a>
+                                <a href="/about" class="footer-link"> About
+                                </a>
+                                <a href="{% url 'all_cars' %}" class="footer-link"> Cars
+                                </a>
+                                <a href="/contact" class="footer-link"> Contact
+                                </a>
+                                <a href="/blog" class="footer-link"> Blog
+                                </a>
+                                <a href="{% url 'jobs_list' %}" class="footer-link"> Careers
+                                </a>
+                            </div>
+                        </div>
+                        <div>
+                            <h2 class="footer-title">
+                                Utility Pages
+                            </h2>
+                                                        <div class="w-layout-grid grid-footer-link">
+                                <div class="footer-link-wrap">
+                                    <a href="/instructions" class="footer-link"> Instructions
+                                    </a>
+                                    <a href="/licenses" class="footer-link"> Licenses
+                                    </a>
+                                    <a href="/utility-pages/link-in-bio" class="footer-link"> Link in Bio
+                                    </a>
+                                </div>
+                                <div class="footer-link-wrap">
+                                    <a href="/privacy" class="footer-link"> Privacy Policy
+                                    </a>
+                                    <a href="/terms" class="footer-link"> Terms of Service
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="footer-copyright-wrap">
+                    <p class="no-margin-bottom">
+                        Designed by
+                        <a href="https://webestica.com/" target="_blank" class="footer-copyright-link"> Webestica
+                        </a>
+                        
+                    </p>
+                    <div class="footer-social-wrap">
+                        <a href="https://www.facebook.com/" target="_blank" class="footer-social-link w-inline-block">
+                            <img src="{% static 'images/674ef43c2f257b9d04bb0dbc_facebook.svg' %}"
+                                loading="lazy" alt="" class="footer-social-icon" />
+                        </a>
+                        <a href="https://www.instagram.com/" target="_blank" class="footer-social-link w-inline-block">
+                            <img src="{% static 'images/674ef43c2354569669a1565f_instagram.svg' %}"
+                                loading="lazy" alt="" class="footer-social-icon" />
+                        </a>
+                        <a href="https://www.linkedin.com/" target="_blank" class="footer-social-link w-inline-block">
+                            <img src="{% static 'images/674ef43ceb71924c1a5c3383_linkedin.svg' %}"
+                                loading="lazy" alt="" class="footer-social-icon" />
+                        </a>
+                        <a href="https://twitter.com/" target="_blank" class="footer-social-link w-inline-block"> <img
+                                src="{% static 'images/674ef43c1e847fe6a19fcbd1_twitter-x.svg' %}"
+                                loading="lazy" alt="" class="footer-social-icon" />
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>

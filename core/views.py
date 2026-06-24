@@ -497,6 +497,8 @@ def customer_dashboard_view(request):
     installment_plans = request.user.installment_plans.all().order_by('-created_at')
     payments = request.user.payments.all().order_by('-created_at')
     
+    user_display_name = request.user.first_name if request.user.first_name else request.user.username.split('@')[0]
+    
     context = {
         'financing_apps': financing_apps,
         'job_apps': job_apps,
@@ -505,6 +507,7 @@ def customer_dashboard_view(request):
         'shipments': shipments,
         'installment_plans': installment_plans,
         'payments': payments,
+        'user_display_name': user_display_name,
     }
     return render(request, 'dashboard/index.html', context)
 

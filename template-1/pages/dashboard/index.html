@@ -104,6 +104,7 @@
             align-items: center;
             justify-content: center;
             font-weight: bold;
+            flex-shrink: 0;
         }
 
         .profile-info h4 {
@@ -402,10 +403,10 @@
                 bottom: 0;
                 left: 0;
                 width: 100%;
-                height: 85px;
-                padding: 10px 15px 25px 15px;
+                height: 70px;
+                padding: 10px;
                 flex-direction: row;
-                justify-content: space-around;
+                justify-content: flex-start;
                 align-items: center;
                 background: rgba(28, 28, 30, 0.9);
                 backdrop-filter: blur(20px);
@@ -413,42 +414,23 @@
                 border-top: 1px solid rgba(255,255,255,0.05);
                 z-index: 1000;
                 border-right: none;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+            .sidebar::-webkit-scrollbar {
+                display: none;
             }
             .brand {
-                position: fixed;
-                top: 0;
-                left: 0;
-                height: 70px;
-                padding: 0 25px;
-                margin: 0;
-                background: rgba(28, 28, 30, 0.9);
-                backdrop-filter: blur(20px);
-                -webkit-backdrop-filter: blur(20px);
-                width: 100%;
-                z-index: 999;
-                border-bottom: 1px solid rgba(255,255,255,0.05);
-                display: flex;
-                align-items: center;
-                font-size: 22px;
+                display: none;
             }
             .profile-widget {
-                position: fixed;
-                top: 15px;
-                right: 20px;
-                margin: 0;
-                z-index: 1000;
-                padding: 0;
-                background: transparent;
-            }
-            .profile-info {
                 display: none;
             }
             .nav-item {
-                flex: 1;
-                justify-content: center;
+                flex: 0 0 auto;
                 margin: 0 5px;
-                padding: 12px 5px;
-                font-size: 12px;
+                padding: 12px 15px;
+                font-size: 13px;
                 border-radius: 14px;
                 text-align: center;
             }
@@ -524,13 +506,14 @@
         <a href="#" class="nav-item" data-target="settings-tab">
             Settings
         </a>
-
         <div class="profile-widget">
             <div class="profile-img">
-                {{ request.user.username|make_list|first|upper }}
+                {{ user_display_name|first|upper }}
             </div>
             <div class="profile-info">
-                <h4>{{ request.user.first_name|default:request.user.username }}</h4>
+                <h4>
+                    {{ user_display_name|title }}
+                </h4>
                 <p>Customer</p>
             </div>
         </div>
@@ -541,7 +524,7 @@
     <div class="main-content">
         <div class="header">
             <div>
-                <h1 style="font-size: 24px; margin-bottom: 5px;">Welcome back, {{ request.user.username }}</h1>
+                <h1>Welcome back, {{ user_display_name|title }}</h1>
                 <p style="color: var(--text-muted); font-size: 14px;">Here is what's happening with your applications today.</p>
             </div>
             <div>

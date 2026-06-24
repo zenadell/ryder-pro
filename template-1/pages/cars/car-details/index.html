@@ -653,8 +653,8 @@
             </div>
             <div class="w-dyn-list">
                                 <div role="list" class="grid-car w-dyn-items">
-                    {% if recent_vehicles %}
-                        {% for vehicle in recent_vehicles %}
+                    {% if related_vehicles %}
+                        {% for vehicle in related_vehicles %}
                         <div role="listitem" class="w-dyn-item">
                             <a  data-w-id="b10814b3-e4a9-a641-b9bd-557884d8422e" href="{% url 'car_details' vehicle.slug %}" class="car-item w-inline-block">
                                 <div class="car-image-wrap">

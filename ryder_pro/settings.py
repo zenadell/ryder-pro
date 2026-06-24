@@ -96,8 +96,6 @@ DATABASES = {
         conn_health_checks=True,
     )
 }
-if 'SUPABASE_DB_URL' in os.environ:
-    DATABASES['default']['OPTIONS'] = {'DISABLE_SERVER_SIDE_CURSORS': True}
 
 
 # Password validation

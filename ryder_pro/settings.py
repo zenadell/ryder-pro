@@ -161,12 +161,14 @@ STORAGES = {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
     },
 }
 
 if os.environ.get('CLOUDINARY_CLOUD_NAME'):
     STORAGES["default"]["BACKEND"] = "cloudinary_storage.storage.MediaCloudinaryStorage"
+
+WHITENOISE_MANIFEST_STRICT = False
 
 
 # Default primary key field type

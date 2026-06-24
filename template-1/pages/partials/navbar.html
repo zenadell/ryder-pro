@@ -12,8 +12,8 @@
     .nav-link {
         color: #fff !important;
         border-bottom: 1px solid rgba(255,255,255,0.05) !important;
-        padding: 18px 20px !important;
-        font-size: 16px !important;
+        padding: 12px 20px !important;
+        font-size: 15px !important;
         transition: background 0.3s !important;
         border-radius: 8px !important;
     }
@@ -22,10 +22,39 @@
     }
     .w-button {
         width: 100% !important;
-        margin-top: 15px !important;
+        margin-top: 10px !important;
+        padding: 12px 20px !important;
+        font-weight: 600 !important;
+        font-size: 15px !important;
         margin-left: 0 !important;
         text-align: center !important;
         background-color: #cc0000 !important;
+    }
+    .auth-buttons-wrapper {
+        display: flex;
+        gap: 12px;
+        padding: 15px 0;
+        margin-top: 5px;
+        border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .login-btn {
+        flex: 1 !important;
+        text-align: center !important;
+        border: 1px solid rgba(255,255,255,0.2) !important;
+        border-bottom: 1px solid rgba(255,255,255,0.2) !important;
+        padding: 12px !important;
+        border-radius: 12px !important;
+        margin: 0 !important;
+    }
+    .signup-btn {
+        flex: 1 !important;
+        text-align: center !important;
+        padding: 12px !important;
+        border-radius: 12px !important;
+        margin: 0 !important;
+        background: linear-gradient(135deg, #e60000 0%, #b30000 100%) !important;
+        box-shadow: 0 4px 15px rgba(230,0,0,0.3) !important;
+        width: auto !important;
     }
     .navbar {
         background: #fff !important;
@@ -69,8 +98,10 @@
                     {% if user.is_authenticated %}
                         <a href="{% url 'dashboard' %}" class="nav-link w-nav-link" style="color: #e60000 !important; font-weight: 600;"> Dashboard </a>
                     {% else %}
-                        <a href="{% url 'login' %}" class="nav-link w-nav-link"> Log In </a>
-                        <a href="{% url 'signup' %}" class="w-button" style="padding: 10px 20px !important; font-weight: 600 !important; font-size: 15px; margin-left: 15px; white-space: nowrap !important;"> Sign Up </a>
+                        <div class="auth-buttons-wrapper">
+                            <a href="{% url 'login' %}" class="nav-link w-nav-link login-btn"> Log In </a>
+                            <a href="{% url 'signup' %}" class="w-button signup-btn"> Sign Up </a>
+                        </div>
                     {% endif %}
                 </nav>
                 <div class="menu-button w-nav-button">

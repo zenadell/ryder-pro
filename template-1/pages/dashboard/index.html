@@ -53,9 +53,26 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            margin-bottom: 50px;
             color: var(--text-main);
             text-decoration: none;
+        }
+
+        .hamburger {
+            display: none;
+        }
+
+        .mobile-header-wrapper {
+            margin-bottom: 50px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-container {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
         }
 
         .brand span {
@@ -394,45 +411,71 @@
         @media (max-width: 991px) {
             body {
                 flex-direction: column;
-                padding-bottom: 90px;
+                padding-bottom: 0;
                 padding-top: 70px;
                 background-color: #121212;
             }
             .sidebar {
                 position: fixed;
-                bottom: 0;
+                top: 0;
                 left: 0;
                 width: 100%;
                 height: 70px;
-                padding: 10px;
-                flex-direction: row;
+                padding: 10px 20px;
+                flex-direction: column;
                 justify-content: flex-start;
-                align-items: center;
-                background: rgba(28, 28, 30, 0.9);
+                align-items: flex-start;
+                background: rgba(28, 28, 30, 0.95);
                 backdrop-filter: blur(20px);
                 -webkit-backdrop-filter: blur(20px);
-                border-top: 1px solid rgba(255,255,255,0.05);
+                border-bottom: 1px solid rgba(255,255,255,0.05);
                 z-index: 1000;
                 border-right: none;
-                overflow-x: auto;
-                white-space: nowrap;
+                overflow: visible;
             }
-            .sidebar::-webkit-scrollbar {
+            .mobile-header-wrapper {
+                margin-bottom: 0 !important;
+                height: 50px;
+            }
+            .hamburger {
+                display: block;
+                background: none;
+                border: none;
+                color: white;
+                cursor: pointer;
+            }
+            .nav-container {
                 display: none;
+                flex-direction: column;
+                width: 100%;
+                background: rgba(28, 28, 30, 0.95);
+                backdrop-filter: blur(20px);
+                -webkit-backdrop-filter: blur(20px);
+                position: absolute;
+                top: 70px;
+                left: 0;
+                padding: 10px 20px 25px 20px;
+                border-bottom: 1px solid rgba(255,255,255,0.05);
+                box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            }
+            .nav-container.show {
+                display: flex;
             }
             .brand {
-                display: none;
+                display: flex;
             }
             .profile-widget {
-                display: none;
+                display: flex;
+                margin-top: 20px;
             }
             .nav-item {
                 flex: 0 0 auto;
-                margin: 0 5px;
+                margin: 5px 0;
                 padding: 12px 15px;
-                font-size: 13px;
+                font-size: 14px;
                 border-radius: 14px;
-                text-align: center;
+                text-align: left;
+                justify-content: flex-start;
             }
             .nav-item.active {
                 background: rgba(204, 0, 0, 0.08);
@@ -487,34 +530,41 @@
 
     <!-- Sidebar -->
     <div class="sidebar">
-        <a href="/" class="brand">
-            <span>✧</span> RyderPro
-        </a>
+        <div class="mobile-header-wrapper">
+            <a href="/" class="brand">
+                <span>✧</span> RyderPro
+            </a>
+            <button class="hamburger" onclick="document.getElementById('navContainer').classList.toggle('show')">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+        </div>
         
-        <a href="#" class="nav-item active" data-target="dashboard-tab">
-            Dashboard
-        </a>
-        <a href="#" class="nav-item" data-target="financing-tab">
-            Financing
-        </a>
-        <a href="#" class="nav-item" data-target="jobs-tab">
-            Job Applications
-        </a>
-        <a href="#" class="nav-item" data-target="rentals-tab">
-            Rentals (Soon)
-        </a>
-        <a href="#" class="nav-item" data-target="settings-tab">
-            Settings
-        </a>
-        <div class="profile-widget">
-            <div class="profile-img">
-                {{ user_display_name|first|upper }}
-            </div>
-            <div class="profile-info">
-                <h4>
-                    {{ user_display_name|title }}
-                </h4>
-                <p>Customer</p>
+        <div class="nav-container" id="navContainer">
+            <a href="#" class="nav-item active" data-target="dashboard-tab">
+                Dashboard
+            </a>
+            <a href="#" class="nav-item" data-target="financing-tab">
+                Financing
+            </a>
+            <a href="#" class="nav-item" data-target="jobs-tab">
+                Job Applications
+            </a>
+            <a href="#" class="nav-item" data-target="rentals-tab">
+                Rentals (Soon)
+            </a>
+            <a href="#" class="nav-item" data-target="settings-tab">
+                Settings
+            </a>
+            <div class="profile-widget">
+                <div class="profile-img">
+                    {{ user_display_name|first|upper }}
+                </div>
+                <div class="profile-info">
+                    <h4>
+                        {{ user_display_name|title }}
+                    </h4>
+                    <p>Customer</p>
+                </div>
             </div>
         </div>
     </div>
@@ -878,6 +928,15 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // Close mobile menu when a nav item is clicked
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    if(window.innerWidth <= 991) {
+                        document.getElementById('navContainer').classList.remove('show');
+                    }
+                });
+            });
+
             // Tab Switching Logic
             const navItems = document.querySelectorAll('.nav-item');
             const tabContents = document.querySelectorAll('.tab-content');

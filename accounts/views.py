@@ -30,7 +30,7 @@ def signup_view(request):
             user = form.save()
             user.email = email
             user.save()
-            login(request, user)
+            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
             messages.success(request, 'Account created successfully! Welcome to Ryder Pro.')
             return redirect('dashboard')
         else:
@@ -75,7 +75,7 @@ def oauth_callback(request):
                     user.email = email
                     user.set_unusable_password()
                     user.save()
-                login(request, user)
+                login(request, user, backend='django.contrib.auth.backends.ModelBackend')
                 messages.success(request, 'Successfully logged in!')
                 return redirect('dashboard')
         except Exception as e:

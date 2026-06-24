@@ -161,7 +161,7 @@ STORAGES = {
         "BACKEND": "ryder_pro.storage.CustomMediaCloudinaryStorage",
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
     },
 }
 

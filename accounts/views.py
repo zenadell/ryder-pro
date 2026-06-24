@@ -15,7 +15,7 @@ def signup_view(request):
             first_name = form.cleaned_data.get('first_name')
             last_name = form.cleaned_data.get('last_name')
             
-            supabase = get_supabase()
+            supabase = get_supabase(request)
             if supabase:
                 try:
                     res = supabase.auth.sign_up({
@@ -45,7 +45,7 @@ def signup_view(request):
     return render(request, 'accounts/signup.html', {'form': form})
 
 def oauth_login(request, provider):
-    supabase = get_supabase()
+    supabase = get_supabase(request)
     if not supabase:
         messages.error(request, "Supabase is not configured.")
         return redirect('login')
@@ -63,7 +63,7 @@ def oauth_login(request, provider):
         return redirect('login')
 
 def oauth_callback(request):
-    supabase = get_supabase()
+    supabase = get_supabase(request)
     code = request.GET.get('code')
     if code and supabase:
         try:

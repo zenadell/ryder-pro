@@ -431,17 +431,8 @@
 /* Premium Scrollyslide CSS */
 .scroll-track-wrapper {
     height: 300vh; /* Adjust scrolling duration */
-    view-timeline-name: --horizontal-scroll;
-    view-timeline-axis: block;
     position: relative;
     background-color: var(--color--light-1);
-    /* Color animation */
-    animation: dark-bg linear both;
-    animation-timeline: --horizontal-scroll;
-    animation-range: contain 0% contain 20%;
-}
-@keyframes dark-bg {
-    to { background-color: #121212; }
 }
 
 .scroll-track-sticky {
@@ -466,21 +457,47 @@
     gap: 40px;
     width: max-content;
     padding-right: 10vw; /* End padding */
-    animation: move-track linear both;
-    animation-timeline: --horizontal-scroll;
-    animation-range: contain 0% contain 100%;
 }
+
+/* 
+ * Robust CSS Scroll-driven animations.
+ * Wrapped in @supports so Safari ignores them and safely uses the JS fallback.
+ * Uses entry/exit ranges which reliably trigger on elements taller than the viewport.
+ */
+@supports (animation-timeline: view()) {
+    .scroll-track-wrapper {
+        view-timeline-name: --horizontal-scroll;
+        view-timeline-axis: block;
+        animation: dark-bg linear both;
+        animation-timeline: --horizontal-scroll;
+        animation-range: entry 100% exit 0%;
+    }
+    
+    .scroll-track {
+        animation: move-track linear both;
+        animation-timeline: --horizontal-scroll;
+        animation-range: entry 100% exit 0%;
+    }
+    
+    .scroll-section-title {
+        animation: text-light linear both;
+        animation-timeline: --horizontal-scroll;
+        animation-range: entry 100% exit 0%;
+    }
+}
+
+@keyframes dark-bg {
+    0% { background-color: var(--color--light-1); }
+    20%, 100% { background-color: #121212; }
+}
+
 @keyframes move-track {
     to { transform: translateX(calc(-100% + 100vw)); }
 }
 
-.scroll-section-title {
-    animation: text-light linear both;
-    animation-timeline: --horizontal-scroll;
-    animation-range: contain 0% contain 20%;
-}
 @keyframes text-light {
-    to { color: #ffffff; }
+    0% { color: inherit; }
+    20%, 100% { color: #ffffff; }
 }
 
 /* Enhancing the cards to look premium on dark bg */

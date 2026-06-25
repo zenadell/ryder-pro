@@ -286,6 +286,7 @@ def subscribe_newsletter(request):
         return redirect(referer)
     return redirect('home')
 
+@login_required
 def financing_apply_view(request, slug):
     vehicle = get_object_or_404(Vehicle, slug=slug)
     
@@ -308,6 +309,7 @@ def financing_apply_view(request, slug):
     }
     return render(request, 'financing/apply.html', context)
 
+@login_required
 def financing_success_view(request, slug):
     vehicle = get_object_or_404(Vehicle, slug=slug)
     return render(request, 'financing/success.html', {'vehicle': vehicle})
@@ -345,6 +347,7 @@ def job_success_view(request, id):
     job = get_object_or_404(Job, id=id)
     return render(request, 'jobs/success.html', {'job': job})
 
+@login_required
 def trade_in_view(request):
     if request.method == 'POST':
         form = TradeInRequestForm(request.POST, request.FILES)
@@ -360,9 +363,11 @@ def trade_in_view(request):
         
     return render(request, 'trade-in/index.html', {'form': form})
 
+@login_required
 def trade_in_success_view(request):
     return render(request, 'trade-in/success.html')
 
+@login_required
 def rental_apply_view(request, slug):
     vehicle = get_object_or_404(Vehicle, slug=slug)
     if request.method == 'POST':
@@ -393,6 +398,7 @@ def rental_apply_view(request, slug):
         
     return render(request, 'rentals/apply.html', {'form': form, 'vehicle': vehicle})
 
+@login_required
 def rental_checkout_view(request, id):
     rental = get_object_or_404(RentalRequest, id=id)
     stripe.api_key = settings.STRIPE_SECRET_KEY
@@ -449,6 +455,7 @@ def rental_checkout_view(request, id):
         
     return render(request, 'rentals/checkout.html', {'form': form, 'rental': rental})
 
+@login_required
 def rental_success_view(request, id):
     rental = get_object_or_404(RentalRequest, id=id)
     return render(request, 'rentals/success.html', {'rental': rental})

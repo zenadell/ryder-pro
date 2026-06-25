@@ -1,5 +1,17 @@
 {% load static %}
 <style>
+/* Sticky Header */
+.navbar.w-nav {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: #fff !important;
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+    min-height: auto !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+}
+
 @media screen and (max-width: 991px) {
     .nav-menu {
         background: #111 !important;
@@ -8,6 +20,9 @@
         padding: 20px !important;
         border: 1px solid rgba(255,255,255,0.1) !important;
         border-top: none !important;
+        max-height: 80vh !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
     }
     .nav-link {
         color: #fff !important;
@@ -56,34 +71,89 @@
         box-shadow: 0 4px 15px rgba(230,0,0,0.3) !important;
         width: auto !important;
     }
-    .navbar {
-        background: #fff !important;
+    
+    /* Mobile Submenu */
+    .mobile-dropdown-content { 
+        display: none; 
+        padding-left: 15px; 
+        border-bottom: 1px solid rgba(255,255,255,0.05);
     }
-    .nav-menu {
-        max-height: 80vh !important;
-        overflow-y: auto !important;
-        overflow-x: hidden !important;
+    .mobile-dropdown.open .mobile-dropdown-content { 
+        display: flex; 
+        flex-direction: column;
+    }
+    .mobile-dropdown-toggle {
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
 }
+
+@media screen and (min-width: 992px) {
+    /* Desktop layout overrides to prevent squishing */
+    .grid-nav {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        width: 100%;
+    }
+    .right-nav {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-end;
+        flex: 1;
+    }
+    .nav-menu.w-nav-menu {
+        display: flex !important;
+        align-items: center !important;
+        gap: 5px;
+    }
+    .auth-buttons-wrapper {
+        display: flex !important;
+        gap: 15px !important;
+        align-items: center !important;
+        margin-left: 15px !important;
+    }
+    .w-button.signup-btn, .login-btn {
+        width: max-content !important;
+        white-space: nowrap !important;
+        padding: 10px 20px !important;
+        margin: 0 !important;
+    }
+    .nav-link {
+        padding: 10px 12px !important;
+        font-size: 14px !important;
+    }
+    
+    /* Desktop unwraps the mobile dropdown */
+    .mobile-dropdown { display: contents; }
+    .mobile-dropdown-toggle { display: none !important; }
+    .mobile-dropdown-content { display: contents; }
+}
+
 @media screen and (min-width: 992px) and (max-width: 1250px) {
     .nav-link {
-        padding: 10px 10px !important;
+        padding: 8px 8px !important;
         font-size: 13px !important;
     }
-    .w-button {
+    .auth-buttons-wrapper {
+        gap: 10px !important;
+        margin-left: 10px !important;
+    }
+    .w-button.signup-btn, .login-btn {
         padding: 8px 15px !important;
         font-size: 13px !important;
-        margin-left: 10px !important;
     }
 }
 </style>
+
 <div data-animation="default" data-collapse="medium" data-duration="400" data-easing="ease" data-easing2="ease"
     role="banner" class="navbar w-nav">
     <div class="container-full w-container">
         <div class="w-layout-grid grid-nav">
-            <a href="/" id="w-node-e6ff9f79-f479-fa42-6f69-a3df18a8ef3f-18a8ef3c" class="brand w-nav-brand"> <img
-                    src="{% static 'images/ryder-pro-logo.png' %}"
-                    loading="lazy" alt="" class="header-logo" style="height: 60px; width: auto;" />
+            <a href="/" id="w-node-e6ff9f79-f479-fa42-6f69-a3df18a8ef3f-18a8ef3c" class="brand w-nav-brand"> 
+                <img src="{% static 'images/ryder-pro-logo.png' %}" loading="lazy" alt="" class="header-logo" style="height: 50px; width: auto; margin: 0;" />
             </a>
             <div id="w-node-e6ff9f79-f479-fa42-6f69-a3df18a8ef64-18a8ef3c" class="right-nav">
                 <nav role="navigation" id="w-node-e6ff9f79-f479-fa42-6f69-a3df18a8ef41-18a8ef3c"
@@ -92,15 +162,27 @@
                     <a href="/about" class="nav-link w-nav-link"> About </a>
                     <a href="{% url 'all_cars' %}" class="nav-link w-nav-link"> Browse Cars </a>
                     <a href="{% url 'trade_in' %}" class="nav-link w-nav-link"> Trade-In </a>
-                    <a href="{% url 'jobs_list' %}" class="nav-link w-nav-link"> Careers </a>
+                    
+                    <div class="mobile-dropdown">
+                        <div class="mobile-dropdown-toggle nav-link w-nav-link" onclick="this.parentElement.classList.toggle('open')">
+                            More <span>▼</span>
+                        </div>
+                        <div class="mobile-dropdown-content">
+                            <a href="{% url 'jobs_list' %}" class="nav-link w-nav-link"> Careers </a>
+                            <a href="/contact" class="nav-link w-nav-link"> Contact </a>
+                        </div>
+                    </div>
+                    
                     <a href="{% url 'shipment_tracking' %}" class="nav-link w-nav-link" style="color: var(--color--primary-1); font-weight: 600;"> Track Order </a>
-                    <a href="/contact" class="nav-link w-nav-link"> Contact </a>
+                    
                     {% if user.is_authenticated %}
-                        <a href="{% url 'dashboard' %}" class="nav-link w-nav-link" style="color: #e60000 !important; font-weight: 600;"> Dashboard </a>
+                        <div class="auth-buttons-wrapper">
+                            <a href="{% url 'dashboard' %}" class="nav-link w-nav-link login-btn" style="color: #e60000 !important; border: 1px solid #e60000 !important; font-weight: 600;"> Dashboard </a>
+                        </div>
                     {% else %}
                         <div class="auth-buttons-wrapper">
-                            <a href="{% url 'login' %}" class="nav-link w-nav-link login-btn"> Log In </a>
-                            <a href="{% url 'signup' %}" class="w-button signup-btn"> Sign Up </a>
+                            <a href="{% url 'login' %}" class="nav-link w-nav-link login-btn" style="color: #111;"> Log In </a>
+                            <a href="{% url 'signup' %}" class="w-button signup-btn" style="color: #fff;"> Sign Up </a>
                         </div>
                     {% endif %}
                 </nav>

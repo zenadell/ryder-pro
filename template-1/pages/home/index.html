@@ -155,6 +155,7 @@
     height: 300vh;
     position: relative;
     background-color: var(--color--light-1);
+    transition: background-color 0.8s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .scroll-track-sticky {
@@ -204,6 +205,10 @@
 
 .scroll-track-wrapper.is-pinned-active {
     background-color: #121212;
+}
+
+.scroll-section-title {
+    transition: color 0.8s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .scroll-track-wrapper.is-pinned-active .scroll-section-title {

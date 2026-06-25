@@ -1,13 +1,24 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils.text import slugify
+import os
+from django.core.files.storage import FileSystemStorage
+
+if os.environ.get('CLOUDINARY_CLOUD_NAME'):
+    from cloudinary_storage.storage import RawMediaCloudinaryStorage
+    from ryder_pro.storage import CustomVideoMediaCloudinaryStorage
+    RAW_STORAGE = RawMediaCloudinaryStorage()
+    VIDEO_STORAGE = CustomVideoMediaCloudinaryStorage()
+else:
+    RAW_STORAGE = FileSystemStorage()
+    VIDEO_STORAGE = FileSystemStorage()
 
 # Global & Static Content
 class SiteContent(models.Model):
     key = models.SlugField(unique=True, help_text="e.g. 'home_hero_title'")
     value = models.TextField(help_text="The text or HTML content", blank=True, null=True)
     image = models.ImageField(upload_to='site_images/', blank=True, null=True, help_text="Use this for image content")
-    video = models.FileField(upload_to='site_videos/', blank=True, null=True, help_text="Use this for video content (mp4/webm)")
+    video = models.FileField(upload_to='site_videos/', storage=VIDEO_STORAGE, blank=True, null=True, help_text="Use this for video content (mp4/webm)")
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
@@ -216,14 +227,6 @@ class Job(models.Model):
     def __str__(self):
         return self.title
 
-import os
-from django.core.files.storage import FileSystemStorage
-
-if os.environ.get('CLOUDINARY_CLOUD_NAME'):
-    from cloudinary_storage.storage import RawMediaCloudinaryStorage
-    RAW_STORAGE = RawMediaCloudinaryStorage()
-else:
-    RAW_STORAGE = FileSystemStorage()
 
 class JobApplication(models.Model):
     STATUS_CHOICES = [

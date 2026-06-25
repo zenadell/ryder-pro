@@ -38,284 +38,6 @@
                 background-color: rgb(245, 245, 245);
             }
         }
-    
-/* Premium Card Redesign */
-.scroll-track .car-item {
-    width: 400px;
-    background: #ffffff;
-    border-radius: 24px;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
-    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
-    flex-shrink: 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    text-decoration: none;
-    color: #111;
-    border: 1px solid rgba(0,0,0,0.05);
-}
-.scroll-track .car-item:hover {
-    transform: translateY(-12px) scale(1.02);
-    box-shadow: 0 30px 60px rgba(0,0,0,0.25);
-}
-
-.scroll-track .car-image-wrap {
-    width: 100%;
-    height: 225px; /* 16:9 ratio */
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: hidden;
-    background: #f0f0f0;
-}
-
-.scroll-track .car-image {
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: cover !important;
-    transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-.scroll-track .car-item:hover .car-image {
-    transform: scale(1.08) !important;
-}
-
-.scroll-track .car-body {
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1;
-}
-
-.scroll-track .car-title-wrap {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 20px;
-    gap: 15px;
-}
-
-.scroll-track .car-title {
-    font-size: 22px;
-    font-weight: 800;
-    margin: 0;
-    line-height: 1.2;
-    color: #121212;
-    letter-spacing: -0.5px;
-}
-
-.scroll-track .car-price-wrap {
-    text-align: right;
-    flex-shrink: 0;
-}
-
-.scroll-track .car-rent-price {
-    font-size: 22px;
-    font-weight: 800;
-    color: #e60000;
-    line-height: 1;
-}
-
-.scroll-track .car-rent-text {
-    font-size: 11px;
-    color: #888;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-top: 4px;
-    font-weight: 600;
-}
-
-.scroll-track .car-divider {
-    height: 1px;
-    background: #f0f0f0;
-    margin: 0 0 20px 0;
-}
-
-.scroll-track .grid-car-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.scroll-track .car-meta-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: #f8f8f8;
-    padding: 8px 14px;
-    border-radius: 12px;
-    border: 1px solid #f0f0f0;
-}
-
-.scroll-track .car-meta-icon {
-    width: 18px;
-    height: 18px;
-    opacity: 0.8;
-}
-
-.scroll-track .car-meta-value {
-    font-size: 14px;
-    font-weight: 700;
-    color: #111;
-}
-
-.scroll-track .text-small {
-    display: none !important;
-}
-
-
-/* Modern Card Redesign (Reference A Style) */
-.scroll-track .car-item {
-    width: 380px;
-    background: #ffffff;
-    border-radius: 36px;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.1);
-    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    text-decoration: none;
-    color: #111;
-    padding: 8px; /* Inner border effect */
-}
-.scroll-track .car-item:hover {
-    transform: translateY(-8px) scale(1.02);
-    box-shadow: 0 30px 60px rgba(0,0,0,0.15);
-}
-
-.scroll-track .car-image-container {
-    width: 100%;
-    height: 320px;
-    background: #f4f4f5; /* Soft modern gray backdrop */
-    border-radius: 28px 28px 20px 20px;
-    position: relative;
-    overflow: hidden;
-}
-
-.scroll-track .car-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-.scroll-track .car-item:hover .car-image {
-    transform: scale(1.05);
-}
-
-.scroll-track .car-floating-price {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-    background: #ffffff;
-    color: #121212;
-    padding: 10px 18px;
-    border-radius: 24px;
-    font-weight: 800;
-    font-size: 18px;
-    box-shadow: 0 10px 20px rgba(0,0,0,0.08);
-    z-index: 10;
-}
-
-.scroll-track .car-body-new {
-    padding: 24px 16px 16px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-.scroll-track .car-body-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid #f0f0f0;
-    padding-bottom: 16px;
-}
-
-.scroll-track .car-title-new {
-    font-size: 24px;
-    font-weight: 700;
-    color: #121212;
-    margin: 0;
-    letter-spacing: -0.5px;
-}
-
-.scroll-track .car-order-btn {
-    font-size: 14px;
-    font-weight: 600;
-    color: #121212;
-    text-transform: capitalize;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    transition: color 0.3s ease;
-}
-
-.scroll-track .car-item:hover .car-order-btn {
-    color: #e60000;
-}
-
-.scroll-track .car-tags-row {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.scroll-track .car-tag {
-    background: #f4f4f5;
-    padding: 8px 14px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
-    color: #666;
-    text-transform: capitalize;
-}
-
-
-/* Dual-Layer JS Marquee Redesign */
-.marquee-global-wrapper {
-    position: relative;
-    width: 100vw;
-    margin-left: calc(-50vw + 50%); /* break out of container to go full width */
-    overflow: hidden;
-    padding: 20px 0;
-    display: flex;
-    flex-direction: column;
-    gap: 32px; /* Perfect space between the two tracks */
-}
-
-.marquee-track-container {
-    width: 100%;
-    overflow: hidden;
-    position: relative;
-    /* Hide scrollbar */
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-.marquee-track-container::-webkit-scrollbar {
-    display: none;
-}
-
-.marquee-track {
-    display: flex;
-    gap: 32px; /* Perfect space between cards */
-    width: max-content;
-    will-change: transform;
-}
-
-/* Ensure review items look consistent in the row */
-.marquee-track .review-item {
-    width: 400px;
-    flex-shrink: 0;
-    background: #ffffff;
-    border-radius: 24px;
-    padding: 32px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-    border: 1px solid rgba(0,0,0,0.05);
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-}
-
 </style>
     
     
@@ -428,76 +150,64 @@
     
 
 <style>
-/* Premium Scrollyslide CSS */
+/* Pinned vehicle gallery */
 .scroll-track-wrapper {
-    height: 300vh; /* Adjust scrolling duration */
+    height: 300vh;
     position: relative;
     background-color: var(--color--light-1);
 }
 
 .scroll-track-sticky {
-    position: sticky;
+    position: absolute;
     top: 0;
+    left: 0;
+    right: 0;
     height: 100vh;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
+    padding-top: clamp(56px, 8vh, 92px);
+    box-sizing: border-box;
+    background-color: inherit;
+}
+
+.scroll-track-wrapper.is-fixed .scroll-track-sticky {
+    position: fixed;
+    z-index: 5;
+}
+
+.scroll-track-wrapper.is-after .scroll-track-sticky {
+    position: absolute;
+    top: auto;
+    bottom: 0;
+}
+
+.scroll-track-sticky .section-title-wrap {
+    flex-shrink: 0;
 }
 
 .scroll-track-container {
     width: 100vw;
     margin-top: 40px;
-    /* align the start of the slider with the container */
     padding-left: max(5vw, calc((100vw - 1200px) / 2));
+    flex-shrink: 0;
 }
 
 .scroll-track {
     display: flex;
     gap: 40px;
     width: max-content;
-    padding-right: 10vw; /* End padding */
+    padding-right: 10vw;
+    will-change: transform;
 }
 
-/* 
- * Robust CSS Scroll-driven animations.
- * Wrapped in @supports so Safari ignores them and safely uses the JS fallback.
- * Uses entry/exit ranges which reliably trigger on elements taller than the viewport.
- */
-@supports (animation-timeline: view()) {
-    .scroll-track-wrapper {
-        view-timeline-name: --horizontal-scroll;
-        view-timeline-axis: block;
-        animation: dark-bg linear both;
-        animation-timeline: --horizontal-scroll;
-        animation-range: entry 100% exit 0%;
-    }
-    
-    .scroll-track {
-        animation: move-track linear both;
-        animation-timeline: --horizontal-scroll;
-        animation-range: entry 100% exit 0%;
-    }
-    
-    .scroll-section-title {
-        animation: text-light linear both;
-        animation-timeline: --horizontal-scroll;
-        animation-range: entry 100% exit 0%;
-    }
+.scroll-track-wrapper.is-pinned-active {
+    background-color: #121212;
 }
 
-@keyframes dark-bg {
-    0% { background-color: var(--color--light-1); }
-    20%, 100% { background-color: #121212; }
-}
-
-@keyframes move-track {
-    to { transform: translateX(calc(-100% + 100vw)); }
-}
-
-@keyframes text-light {
-    0% { color: inherit; }
-    20%, 100% { color: #ffffff; }
+.scroll-track-wrapper.is-pinned-active .scroll-section-title {
+    color: #ffffff;
 }
 
 /* Enhancing the cards to look premium on dark bg */
@@ -783,49 +493,83 @@
 
 </style>
 
-<!-- Fallback JS for browsers without CSS animation-timeline -->
+<!-- Pinned horizontal scroll for the vehicle collection -->
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-    if (!CSS.supports('animation-timeline: view()')) {
-        const wrapper = document.querySelector('.scroll-track-wrapper');
-        const track = document.querySelector('.scroll-track');
-        const title = document.querySelector('.scroll-section-title');
-        
-        window.addEventListener('scroll', () => {
-            const rect = wrapper.getBoundingClientRect();
-            const top = rect.top;
-            const height = rect.height;
-            const windowHeight = window.innerHeight;
-            
-            // "contain" range means the sticky element is currently stuck
-            // which happens when top <= 0 and top >= -(height - windowHeight)
-            let progress = 0;
-            if (top > 0) progress = 0;
-            else if (top < -(height - windowHeight)) progress = 1;
-            else progress = Math.abs(top) / (height - windowHeight);
-            
-            // Apply track translation manually
-            track.style.transform = `translateX(calc(${progress} * (-100% + 100vw)))`;
-            
-            // Background color animation manual fallback
-            if (progress > 0.2) {
-                wrapper.style.backgroundColor = '#121212';
-                if(title) title.style.color = '#ffffff';
-            } else {
-                const ratio = progress / 0.2; // 0 to 1
-                const dark = Math.round(255 - (255 - 18) * ratio); // 18 is ~0x12
-                wrapper.style.backgroundColor = `rgb(${dark}, ${dark}, ${dark})`;
-                if(title) title.style.color = `rgb(${dark}, ${dark}, ${dark})`; // wait, from black to white
-            }
-        });
+    const wrapper = document.querySelector('.scroll-track-wrapper');
+    const sticky = document.querySelector('.scroll-track-sticky');
+    const track = document.querySelector('.scroll-track');
+    if (!wrapper || !sticky || !track) return;
+
+    const state = {
+        maxTranslate: 0,
+        pinDistance: 1,
+        pinStart: 0,
+        pinEnd: 0,
+        ticking: false,
+    };
+
+    const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+    const getPageTop = (element) => element.getBoundingClientRect().top + window.scrollY;
+
+    function measure() {
+        track.style.transform = 'translate3d(0, 0, 0)';
+
+        const lastCard = track.querySelector('.car-item:last-child');
+        if (!lastCard) return;
+
+        const lastRect = lastCard.getBoundingClientRect();
+        const endRight = window.innerWidth - Math.max(24, window.innerWidth * 0.05);
+
+        state.maxTranslate = Math.max(
+            0,
+            lastRect.right - endRight
+        );
+        state.pinDistance = Math.max(1, state.maxTranslate);
+        state.pinStart = getPageTop(wrapper);
+        state.pinEnd = state.pinStart + state.pinDistance;
+        wrapper.style.height = `${window.innerHeight + state.pinDistance}px`;
+
+        update();
     }
+
+    function update() {
+        state.ticking = false;
+
+        const currentScroll = window.scrollY;
+        const progress = clamp((currentScroll - state.pinStart) / state.pinDistance, 0, 1);
+        const translateX = -state.maxTranslate * progress;
+        const isFixed = currentScroll >= state.pinStart && currentScroll <= state.pinEnd;
+        const isAfter = currentScroll > state.pinEnd;
+
+        track.style.transform = `translate3d(${translateX}px, 0, 0)`;
+        wrapper.classList.toggle('is-pinned-active', currentScroll >= state.pinStart);
+        wrapper.classList.toggle('is-fixed', isFixed);
+        wrapper.classList.toggle('is-after', isAfter);
+    }
+
+    function requestUpdate() {
+        if (state.ticking) return;
+        state.ticking = true;
+        requestAnimationFrame(update);
+    }
+
+    window.addEventListener('scroll', requestUpdate, { passive: true });
+    window.addEventListener('resize', measure);
+    window.addEventListener('load', measure);
+
+    if ('ResizeObserver' in window) {
+        new ResizeObserver(measure).observe(track);
+    }
+
+    measure();
 });
 </script>
 
 <section class="scroll-track-wrapper">
     <div class="scroll-track-sticky">
         <div class="w-layout-blockcontainer container w-container">
-            <div data-w-id="ca0f153d-18d4-8385-4350-c9b265ca2633" class="section-title section-title-wrap">
+            <div class="section-title section-title-wrap">
                 <h2 class="no-margin-bottom scroll-section-title">
                     Our rental car collection
                 </h2>

@@ -3,7 +3,10 @@ from .models import (
     SiteContent, NewsletterSubscriber, ContactMessage, TeamMember, BlogPost,
     Category, VehicleFeature, Vehicle, VehicleImage, Review,
     Job, JobApplication, FinancingApplication, GalleryImage, TradeInRequest, RentalRequest, Shipment,
-    GeminiAPIKey, BulkImport, InstallmentPlan, PaymentTransaction
+    GeminiAPIKey, BulkImport, InstallmentPlan, PaymentTransaction,
+    InvestmentAsset, Investment, InvestorWallet, InvestmentTransaction,
+    WithdrawalWindow, WithdrawalRequest,
+    ChatConfig, ChatConversation, ChatMessage,
 )
 from django.urls import path
 from django.template.response import TemplateResponse
@@ -154,3 +157,72 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
     list_display = ('user', 'amount', 'payment_type', 'status', 'created_at')
     list_filter = ('payment_type', 'status', 'created_at')
     search_fields = ('user__username', 'transaction_id')
+
+
+# ---- Ryder Invest ----
+@admin.register(InvestmentAsset)
+class InvestmentAssetAdmin(admin.ModelAdmin):
+    list_display = ('name', 'asset_type', 'total_value', 'amount_funded', 'funded_percent', 'daily_return_percent', 'min_investment', 'is_active', 'is_featured')
+    list_filter = ('asset_type', 'is_active', 'is_featured')
+    list_editable = ('is_active', 'is_featured', 'daily_return_percent')
+    search_fields = ('name', 'description')
+    prepopulated_fields = {'slug': ('name',)}
+
+
+@admin.register(Investment)
+class InvestmentAdmin(admin.ModelAdmin):
+    list_display = ('user', 'asset', 'amount', 'contract_months', 'daily_return_percent', 'accrued_earnings', 'status', 'start_date', 'end_date')
+    list_filter = ('status', 'asset__asset_type', 'start_date')
+    search_fields = ('user__username', 'asset__name')
+    readonly_fields = ('accrued_earnings', 'last_accrued_on', 'created_at')
+
+
+@admin.register(InvestorWallet)
+class InvestorWalletAdmin(admin.ModelAdmin):
+    list_display = ('user', 'balance', 'accumulated_fee', 'total_deposited', 'total_withdrawn', 'total_earned', 'total_fees_paid', 'updated_at')
+    search_fields = ('user__username',)
+
+
+@admin.register(InvestmentTransaction)
+class InvestmentTransactionAdmin(admin.ModelAdmin):
+    list_display = ('user', 'tx_type', 'amount', 'status', 'investment', 'created_at')
+    list_filter = ('tx_type', 'status', 'created_at')
+    search_fields = ('user__username', 'reference')
+
+
+@admin.register(WithdrawalWindow)
+class WithdrawalWindowAdmin(admin.ModelAdmin):
+    list_display = ('label', 'opens_at', 'closes_at', 'fee_type', 'fee_percent', 'fee_flat_amount', 'is_active', 'is_open')
+    list_filter = ('is_active', 'fee_type')
+    list_editable = ('is_active', 'fee_type', 'fee_percent', 'fee_flat_amount')
+
+
+@admin.register(WithdrawalRequest)
+class WithdrawalRequestAdmin(admin.ModelAdmin):
+    list_display = ('user', 'amount', 'fee', 'fee_paid', 'net_payout', 'status', 'window', 'created_at', 'processed_at')
+    list_filter = ('status', 'fee_paid', 'created_at')
+    search_fields = ('user__username',)
+    readonly_fields = ('created_at',)
+
+
+# ---- Ryder AI Assistant ----
+@admin.register(ChatConfig)
+class ChatConfigAdmin(admin.ModelAdmin):
+    list_display = ('name', 'provider', 'model_name', 'is_enabled', 'human_handoff_enabled')
+    list_editable = ('is_enabled', 'human_handoff_enabled')
+
+
+class ChatMessageInline(admin.TabularInline):
+    model = ChatMessage
+    extra = 0
+    readonly_fields = ('role', 'content', 'created_at')
+    can_delete = False
+
+
+@admin.register(ChatConversation)
+class ChatConversationAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'user', 'status', 'assigned_agent', 'updated_at')
+    list_filter = ('status', 'updated_at')
+    search_fields = ('user__username', 'session_key')
+    readonly_fields = ('user', 'session_key', 'created_at', 'updated_at')
+    inlines = [ChatMessageInline]

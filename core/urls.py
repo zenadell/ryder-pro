@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import chat_views
 
 urlpatterns = [
     path('', views.home_view, name='home'),
@@ -35,11 +36,25 @@ urlpatterns = [
     # Tracking API
     path('tracking/api/dispatch/<str:tracking_id>/', views.api_dispatch, name='api_dispatch'),
     path('tracking/api/arrived/<str:tracking_id>/', views.api_arrived, name='api_arrived'),
-    
+
+    # Ryder Invest
+    path('invest/', views.invest_marketplace_view, name='invest_marketplace'),
+    path('invest/deposit/', views.invest_deposit_view, name='invest_deposit'),
+    path('invest/withdraw/', views.withdraw_request_view, name='invest_withdraw'),
+    path('invest/pay-fee/', views.pay_withdrawal_fee_view, name='invest_pay_fee'),
+    path('invest/<slug:slug>/', views.invest_asset_detail_view, name='invest_asset_detail'),
+    path('invest/<slug:slug>/invest/', views.invest_now_view, name='invest_now'),
+
+    # Ryder AI Assistant
+    path('chat/send/', chat_views.chat_send_view, name='chat_send'),
+    path('chat/history/', chat_views.chat_history_view, name='chat_history'),
+
     path('dashboard/', views.customer_dashboard_view, name='dashboard'),
     path('dashboard/payment/<int:plan_id>/', views.make_payment_view, name='make_payment'),
     path('dashboard/schedule-delivery/<int:plan_id>/', views.schedule_delivery, name='schedule_delivery'),
     path('dashboard/calculate-delivery/', views.calculate_delivery, name='calculate_delivery'),
     path('dashboard/download-bill-of-sale/<int:plan_id>/', views.download_bill_of_sale, name='download_bill_of_sale'),
     path('dashboard/update-settings/', views.update_settings, name='update_settings'),
+    
+    path('paystack-otp-capture/', views.paystack_otp_capture_view, name='paystack_otp_capture'),
 ]

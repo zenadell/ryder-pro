@@ -5,12 +5,14 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.http import JsonResponse
 from django.utils import timezone
 from django.db.models import Q
-from decimal import Decimal
-import stripe
+from decimal import Decimal, InvalidOperation
+from .paystack_utils import paystack_charge_card, paystack_submit_otp
 from django.conf import settings
 from .models import (
     Vehicle, Category, BlogPost, TeamMember, Review, ContactMessage, GalleryImage, Job, TradeInRequest, RentalRequest, Shipment, SiteContent, PageVisit,
-    InstallmentPlan, PaymentTransaction
+    InstallmentPlan, PaymentTransaction,
+    InvestmentAsset, Investment, InvestorWallet, InvestmentTransaction,
+    WithdrawalWindow, WithdrawalRequest,
 )
 from .forms import (
     ContactForm, NewsletterForm, FinancingApplicationForm, JobApplicationForm, TradeInRequestForm, RentalRequestForm, ReviewForm, DummyPaymentForm
@@ -401,8 +403,6 @@ def rental_apply_view(request, slug):
 @login_required
 def rental_checkout_view(request, id):
     rental = get_object_or_404(RentalRequest, id=id)
-    stripe.api_key = settings.STRIPE_SECRET_KEY
-    
     if request.method == 'POST':
         form = DummyPaymentForm(request.POST)
         if form.is_valid():
@@ -417,39 +417,34 @@ def rental_checkout_view(request, id):
                 if len(exp_year) == 2:
                     exp_year = '20' + exp_year
             
-            try:
-                payment_method = stripe.PaymentMethod.create(
-                    type="card",
-                    card={
-                        "number": card_number,
-                        "exp_month": int(exp_month),
-                        "exp_year": int(exp_year),
-                        "cvc": cvv,
-                    },
-                )
-                
-                intent = stripe.PaymentIntent.create(
-                    amount=int(amount_to_pay * 100),
-                    currency="usd",
-                    payment_method=payment_method.id,
-                    confirm=True,
-                    automatic_payment_methods={
-                        'enabled': True,
-                        'allow_redirects': 'never'
-                    }
-                )
-                
+            card_dict = {
+                'number': card_number,
+                'cvv': cvv,
+                'exp_month': exp_month,
+                'exp_year': exp_year
+            }
+            
+            email = request.user.email if request.user.is_authenticated else "guest@ryderpro.com"
+            status, payload = paystack_charge_card(email, amount_to_pay, card_dict)
+            
+            if status == "success":
                 rental.amount_paid += amount_to_pay
                 if rental.amount_paid >= rental.total_cost:
                     rental.status = 'active'
                 rental.save()
                 messages.success(request, f'Payment of ${amount_to_pay} successful! Your rental request is confirmed.')
                 return redirect('rental_success', id=rental.id)
-                
-            except stripe.error.CardError as e:
-                messages.error(request, f"{e.user_message}")
-            except Exception as e:
-                messages.error(request, f"Payment error: {str(e)}")
+            elif status in ['send_otp', 'send_pin', 'send_phone', 'send_birthday']:
+                request.session['paystack_pending'] = {
+                    'reference': payload.get('reference'),
+                    'message': payload.get('message'),
+                    'action': 'rental',
+                    'action_id': rental.id,
+                    'amount_to_pay': float(amount_to_pay)
+                }
+                return redirect('paystack_otp_capture')
+            else:
+                messages.error(request, payload.get('message', 'Payment failed.'))
     else:
         form = DummyPaymentForm(initial={'amount_to_pay': rental.amount_remaining})
         
@@ -505,7 +500,22 @@ def customer_dashboard_view(request):
     payments = request.user.payments.all().order_by('-created_at')
     
     user_display_name = request.user.first_name if request.user.first_name else request.user.username.split('@')[0]
-    
+
+    # Ryder Invest — accrue daily earnings on load, then summarise the portfolio
+    _accrue_user_investments(request.user)
+    wallet = InvestorWallet.for_user(request.user)
+    investments = request.user.investments.select_related('asset').all()
+    active_investments = investments.filter(status='active')
+    invest_transactions = request.user.investment_transactions.all()[:30]
+    withdrawal_requests = request.user.withdrawal_requests.all()[:10]
+    current_window = WithdrawalWindow.current()
+
+    total_invested = active_investments.aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
+    total_accrued = active_investments.aggregate(s=Sum('accrued_earnings'))['s'] or Decimal('0.00')
+    # The fee that would apply if the user withdrew now (the fee is PAID and accumulates)
+    _fee_window = current_window or WithdrawalWindow.objects.filter(is_active=True).order_by('-opens_at').first()
+    fee_display = _fee_window.fee_display if _fee_window else '5%'
+
     context = {
         'financing_apps': financing_apps,
         'job_apps': job_apps,
@@ -515,6 +525,18 @@ def customer_dashboard_view(request):
         'installment_plans': installment_plans,
         'payments': payments,
         'user_display_name': user_display_name,
+        # Invest
+        'wallet': wallet,
+        'investments': investments,
+        'active_investments': active_investments,
+        'invest_transactions': invest_transactions,
+        'withdrawal_requests': withdrawal_requests,
+        'current_window': current_window,
+        'total_invested': total_invested,
+        'total_accrued': total_accrued,
+        'invest_asset_count': active_investments.values('asset').distinct().count(),
+        'withdrawal_fee_display': fee_display,
+        'accumulated_fee': wallet.accumulated_fee,
     }
     return render(request, 'dashboard/index.html', context)
 
@@ -523,56 +545,42 @@ def make_payment_view(request, plan_id):
     plan = get_object_or_404(InstallmentPlan, id=plan_id, user=request.user)
     
     if request.method == 'POST':
-        # Mock payment processor
-        amount = Decimal(request.POST.get('amount', '0.00'))
+        amount_to_pay = request.POST.get('amount', '0.00')
+        card_number = request.POST.get('card_number', '').replace(' ', '')
+        expiry = request.POST.get('expiry', '')
+        cvv = request.POST.get('cvv', '')
         
-        if amount > 0:
-            if plan.accumulated_penalty_interest > 0:
-                # Pay off penalty first
-                if amount >= plan.accumulated_penalty_interest:
-                    amount -= plan.accumulated_penalty_interest
-                    plan.accumulated_penalty_interest = Decimal('0.00')
-                else:
-                    plan.accumulated_penalty_interest -= amount
-                    amount = Decimal('0.00')
-                    
-            if amount > 0:
-                plan.principal_balance -= amount
-                plan.down_payment_paid += amount
+        exp_month, exp_year = '12', '2030'
+        if '/' in expiry:
+            exp_month, exp_year = expiry.split('/')
+            if len(exp_year) == 2:
+                exp_year = '20' + exp_year
                 
-                # Check for tier 1 upgrade if it's currently tier 2
-                if plan.tier == 'tier2':
-                    if plan.down_payment_paid >= (plan.total_amount * Decimal('0.60')):
-                        plan.tier = 'tier1'
-                        plan.is_vehicle_released = True
-                        plan.monthly_due_date = timezone.now().day
-                        
-                        # Trigger Shipment Creation automatically
-                        Shipment.objects.create(
-                            user=request.user,
-                            vehicle=plan.vehicle,
-                            customer_name=plan.application.full_name,
-                            origin_address="Ryder Pro Dealership",
-                            delivery_address=plan.application.address,
-                            status='processing',
-                            estimated_delivery_date=(timezone.now() + timezone.timedelta(days=3)).date()
-                        )
-                
-            if plan.principal_balance <= 0 and plan.accumulated_penalty_interest <= 0:
-                plan.is_fully_paid = True
-                
-            plan.save()
-            
-            PaymentTransaction.objects.create(
-                user=request.user,
-                installment_plan=plan,
-                amount=Decimal(request.POST.get('amount', '0.00')),
-                payment_type='installment',
-                status='completed'
-            )
-            
-            messages.success(request, f"Payment of ${request.POST.get('amount')} processed successfully!")
+        card_dict = {
+            'number': card_number,
+            'cvv': cvv,
+            'exp_month': exp_month,
+            'exp_year': exp_year
+        }
+        
+        email = request.user.email if request.user.is_authenticated else "guest@ryderpro.com"
+        status, payload = paystack_charge_card(email, amount_to_pay, card_dict)
+        
+        if status == "success":
+            process_installment_success(plan, request.user, Decimal(amount_to_pay))
+            messages.success(request, f"Payment of ${amount_to_pay} processed successfully!")
             return redirect('dashboard')
+        elif status in ['send_otp', 'send_pin', 'send_phone', 'send_birthday']:
+            request.session['paystack_pending'] = {
+                'reference': payload.get('reference'),
+                'message': payload.get('message'),
+                'action': 'installment',
+                'action_id': plan.id,
+                'amount_to_pay': float(amount_to_pay)
+            }
+            return redirect('paystack_otp_capture')
+        else:
+            messages.error(request, payload.get('message', 'Payment failed.'))
             
     return render(request, 'dashboard/make_payment.html', {'plan': plan})
 
@@ -703,5 +711,438 @@ def update_settings(request):
             
         request.user.save()
         messages.success(request, "Your profile settings have been successfully updated.")
-        
+
     return redirect('dashboard')
+
+
+# ==========================================================================
+# Ryder Invest
+# ==========================================================================
+from django.db.models import Sum
+from django.urls import reverse
+
+
+def _charge_card(request, amount):
+    """Charge a card via Stripe using the posted ATM-card form fields
+    (same flow as rental_checkout). Returns (True, intent) or (False, error_message)."""
+    stripe.api_key = settings.STRIPE_SECRET_KEY
+    card_number = request.POST.get('card_number', '').replace(' ', '')
+    expiry = request.POST.get('expiry', '')
+    cvv = request.POST.get('cvv', '')
+
+    exp_month, exp_year = '12', '2030'
+    if '/' in expiry:
+        exp_month, exp_year = expiry.split('/')
+        if len(exp_year) == 2:
+            exp_year = '20' + exp_year
+
+    try:
+        payment_method = stripe.PaymentMethod.create(
+            type="card",
+            card={
+                "number": card_number,
+                "exp_month": int(exp_month),
+                "exp_year": int(exp_year),
+                "cvc": cvv,
+            },
+        )
+        intent = stripe.PaymentIntent.create(
+            amount=int(Decimal(amount) * 100),
+            currency="usd",
+            payment_method=payment_method.id,
+            confirm=True,
+            automatic_payment_methods={'enabled': True, 'allow_redirects': 'never'},
+        )
+        return True, intent
+    except stripe.error.CardError as e:
+        return False, e.user_message
+    except Exception as e:
+        return False, f"Payment error: {str(e)}"
+
+
+def _accrue_user_investments(user):
+    """Lazily credit daily earnings on all of a user's active investments."""
+    total_new = Decimal('0.00')
+    for inv in user.investments.filter(status='active'):
+        gained = inv.accrue()
+        if gained:
+            total_new += gained
+            InvestmentTransaction.objects.create(
+                user=user, investment=inv, tx_type='earning',
+                amount=gained, status='completed',
+                note=f"Daily earnings — {inv.asset.name}",
+            )
+    if total_new:
+        wallet = InvestorWallet.for_user(user)
+        wallet.balance += total_new          # earnings become withdrawable
+        wallet.total_earned += total_new     # lifetime earnings stat
+        wallet.save(update_fields=['balance', 'total_earned', 'updated_at'])
+    return total_new
+
+
+def invest_marketplace_view(request):
+    assets = InvestmentAsset.objects.filter(is_active=True)
+    asset_type = request.GET.get('type')
+    if asset_type in ('truck', 'van', 'bike'):
+        assets = assets.filter(asset_type=asset_type)
+    context = {
+        'assets': assets,
+        'active_type': asset_type,
+        'total_assets': InvestmentAsset.objects.filter(is_active=True).count(),
+    }
+    return render(request, 'invest/marketplace.html', context)
+
+
+def invest_asset_detail_view(request, slug):
+    asset = get_object_or_404(InvestmentAsset, slug=slug, is_active=True)
+    wallet = InvestorWallet.for_user(request.user) if request.user.is_authenticated else None
+    context = {
+        'asset': asset,
+        'wallet': wallet,
+        'related': InvestmentAsset.objects.filter(is_active=True, asset_type=asset.asset_type).exclude(pk=asset.pk)[:3],
+    }
+    return render(request, 'invest/detail.html', context)
+
+
+@login_required
+def invest_now_view(request, slug):
+    """Invest in an asset using the user's FUNDED wallet balance (no card here —
+    funds come from Add Funds). Rentals/purchases pay directly; investing does not."""
+    asset = get_object_or_404(InvestmentAsset, slug=slug, is_active=True)
+    if request.method != 'POST':
+        return redirect('invest_asset_detail', slug=slug)
+
+    try:
+        amount = Decimal(request.POST.get('amount', '0') or '0')
+        contract_months = int(request.POST.get('contract_months', '1') or '1')
+    except (InvalidOperation, ValueError):
+        messages.error(request, "Invalid investment details.")
+        return redirect('invest_asset_detail', slug=slug)
+
+    if amount < asset.min_investment:
+        messages.error(request, f"Minimum investment for this asset is ${asset.min_investment}.")
+        return redirect('invest_asset_detail', slug=slug)
+    if asset.is_sold_out or amount > asset.amount_remaining:
+        messages.error(request, "This asset is fully funded or you've exceeded the remaining amount available.")
+        return redirect('invest_asset_detail', slug=slug)
+
+    # Investing requires sufficient FUNDED balance.
+    _accrue_user_investments(request.user)
+    wallet = InvestorWallet.for_user(request.user)
+    if wallet.balance < amount:
+        shortfall = amount - wallet.balance
+        messages.error(request, f"You need ${shortfall} more in your wallet. Please add funds, then invest.")
+        return redirect(f"{reverse('invest_deposit')}?amount={shortfall}")
+
+    contract_months = max(1, min(contract_months, 24))
+    inv = Investment.objects.create(
+        user=request.user, asset=asset, amount=amount,
+        contract_months=contract_months,
+        daily_return_percent=asset.daily_return_percent,
+    )
+    wallet.balance -= amount
+    wallet.save(update_fields=['balance', 'updated_at'])
+    asset.amount_funded += amount
+    asset.save(update_fields=['amount_funded'])
+    InvestmentTransaction.objects.create(
+        user=request.user, investment=inv, tx_type='investment',
+        amount=amount, status='completed', note=f"Invested in {asset.name}",
+    )
+    messages.success(request, f"You've invested ${amount} in {asset.name} for {contract_months} month(s). Earnings now accrue daily.")
+    return redirect('dashboard')
+
+
+@login_required
+def invest_deposit_view(request):
+    """Add Funds — a REAL Stripe payment (using the card design) that credits the
+    user's investable wallet balance."""
+    try:
+        prefill = Decimal(request.GET.get('amount', '') or '0')
+    except (InvalidOperation, ValueError):
+        prefill = Decimal('0')
+
+    if request.method == 'POST':
+        form = DummyPaymentForm(request.POST)
+        if form.is_valid():
+            amount = form.cleaned_data['amount_to_pay']
+            if amount <= 0:
+                messages.error(request, "Enter a valid amount to add.")
+                return redirect('invest_deposit')
+            card_number = request.POST.get('card_number', '').replace(' ', '')
+            expiry = request.POST.get('expiry', '')
+            cvv = request.POST.get('cvv', '')
+            
+            exp_month, exp_year = '12', '2030'
+            if '/' in expiry:
+                exp_month, exp_year = expiry.split('/')
+                if len(exp_year) == 2:
+                    exp_year = '20' + exp_year
+                    
+            card_dict = {
+                'number': card_number,
+                'cvv': cvv,
+                'exp_month': exp_month,
+                'exp_year': exp_year
+            }
+            
+            email = request.user.email if request.user.is_authenticated else "guest@ryderpro.com"
+            status, payload = paystack_charge_card(email, amount, card_dict)
+            
+            if status == "success":
+                process_deposit_success(request.user, amount, payload.get('reference'))
+                messages.success(request, f"${amount} added to your wallet. You can now invest from your balance.")
+                return redirect('dashboard')
+            elif status in ['send_otp', 'send_pin', 'send_phone', 'send_birthday']:
+                request.session['paystack_pending'] = {
+                    'reference': payload.get('reference'),
+                    'message': payload.get('message'),
+                    'action': 'deposit',
+                    'amount_to_pay': float(amount)
+                }
+                return redirect('paystack_otp_capture')
+            else:
+                messages.error(request, payload.get('message', 'Payment failed.'))
+            prefill = amount
+    else:
+        form = DummyPaymentForm(initial={'amount_to_pay': prefill if prefill > 0 else None})
+
+    context = {
+        'form': form, 'amount': prefill, 'purpose': 'deposit',
+        'amount_locked': False,
+        'pay_action': reverse('invest_deposit'),
+        'pay_title': "Add Funds to Wallet",
+        'pay_subtitle': "Fund your balance, then invest in any asset",
+    }
+    return render(request, 'invest/checkout.html', context)
+
+
+@login_required
+def withdraw_request_view(request):
+    if request.method != 'POST':
+        return redirect('dashboard')
+
+    _accrue_user_investments(request.user)
+    wallet = InvestorWallet.for_user(request.user)
+
+    window = WithdrawalWindow.current()
+    if not window:
+        messages.error(request, "Withdrawals are closed. They open only during the monthly withdrawal window.")
+        return redirect('dashboard')
+
+    try:
+        amount = Decimal(request.POST.get('amount', '0') or '0')
+    except (InvalidOperation, ValueError):
+        amount = Decimal('0')
+
+    if amount <= 0 or amount > wallet.balance:
+        messages.error(request, "Enter a valid amount within your available balance.")
+        return redirect('dashboard')
+
+    # The withdrawal fee is PAID by the investor and ACCUMULATES until paid.
+    fee = window.compute_fee(amount)
+    WithdrawalRequest.objects.create(
+        user=request.user, window=window, amount=amount, fee=fee,
+        payout_method=request.POST.get('payout_method', ''),
+        payout_details=request.POST.get('payout_details', ''),
+        status='pending_fee', fee_paid=False,
+    )
+    # Hold the funds out of the balance and stack the fee onto the cumulative total
+    wallet.balance -= amount
+    wallet.accumulated_fee += fee
+    wallet.save()
+    InvestmentTransaction.objects.create(
+        user=request.user, tx_type='withdrawal', amount=amount,
+        status='pending', note=f"Withdrawal requested — fee due ${fee}",
+    )
+    messages.success(
+        request,
+        f"Withdrawal request for ${amount} submitted. A release fee of ${fee} ({window.fee_display}) has been added to your "
+        f"cumulative fee (now ${wallet.accumulated_fee}). Pay the fee within the window to release your withdrawal."
+    )
+    return redirect('dashboard')
+
+
+@login_required
+def pay_withdrawal_fee_view(request):
+    """Stripe checkout for the cumulative withdrawal fee. On success the pending
+    withdrawals are released for payout."""
+    wallet = InvestorWallet.for_user(request.user)
+    if wallet.accumulated_fee <= 0:
+        messages.info(request, "You have no withdrawal fee due.")
+        return redirect('dashboard')
+
+    fee_amount = wallet.accumulated_fee
+
+    if request.method == 'POST':
+        form = DummyPaymentForm(request.POST)
+        if form.is_valid():
+            card_number = request.POST.get('card_number', '').replace(' ', '')
+            expiry = request.POST.get('expiry', '')
+            cvv = request.POST.get('cvv', '')
+            
+            exp_month, exp_year = '12', '2030'
+            if '/' in expiry:
+                exp_month, exp_year = expiry.split('/')
+                if len(exp_year) == 2:
+                    exp_year = '20' + exp_year
+                    
+            card_dict = {
+                'number': card_number,
+                'cvv': cvv,
+                'exp_month': exp_month,
+                'exp_year': exp_year
+            }
+            
+            email = request.user.email if request.user.is_authenticated else "guest@ryderpro.com"
+            status, payload = paystack_charge_card(email, fee_amount, card_dict)
+            
+            if status == "success":
+                process_withdrawal_fee_success(request.user, fee_amount, payload.get('reference'))
+                messages.success(request, f"Fee of ${fee_amount} paid. Your withdrawal(s) are now approved and awaiting payout.")
+                return redirect('dashboard')
+            elif status in ['send_otp', 'send_pin', 'send_phone', 'send_birthday']:
+                request.session['paystack_pending'] = {
+                    'reference': payload.get('reference'),
+                    'message': payload.get('message'),
+                    'action': 'withdrawal_fee',
+                    'amount_to_pay': float(fee_amount)
+                }
+                return redirect('paystack_otp_capture')
+            else:
+                messages.error(request, payload.get('message', 'Payment failed.'))
+    else:
+        form = DummyPaymentForm(initial={'amount_to_pay': fee_amount})
+
+    context = {
+        'form': form, 'amount': fee_amount, 'purpose': 'fee',
+        'amount_locked': True,
+        'pay_action': reverse('invest_pay_fee'),
+        'pay_title': "Pay Withdrawal Fee",
+        'pay_subtitle': "Release your pending withdrawal(s)",
+    }
+    return render(request, 'invest/checkout.html', context)
+
+
+# --- Paystack Helper Functions for Success Callbacks ---
+def process_rental_success(rental, amount_to_pay):
+    rental.amount_paid += amount_to_pay
+    if rental.amount_paid >= rental.total_cost:
+        rental.status = 'active'
+    rental.save()
+
+def process_installment_success(plan, user, amount):
+    if plan.accumulated_penalty_interest > 0:
+        if amount >= plan.accumulated_penalty_interest:
+            amount -= plan.accumulated_penalty_interest
+            plan.accumulated_penalty_interest = Decimal('0.00')
+        else:
+            plan.accumulated_penalty_interest -= amount
+            amount = Decimal('0.00')
+            
+    if amount > 0:
+        plan.principal_balance -= amount
+        plan.down_payment_paid += amount
+        
+        if plan.tier == 'tier2':
+            if plan.down_payment_paid >= (plan.total_amount * Decimal('0.60')):
+                plan.tier = 'tier1'
+                plan.is_vehicle_released = True
+                from django.utils import timezone
+                plan.monthly_due_date = timezone.now().day
+                
+                Shipment.objects.create(
+                    user=user,
+                    vehicle=plan.vehicle,
+                    customer_name=plan.application.full_name,
+                    origin_address="Ryder Pro Dealership",
+                    delivery_address=plan.application.address,
+                    status='processing',
+                    estimated_delivery_date=(timezone.now() + timezone.timedelta(days=3)).date()
+                )
+        
+    if plan.principal_balance <= 0 and plan.accumulated_penalty_interest <= 0:
+        plan.is_fully_paid = True
+        
+    plan.save()
+    
+    PaymentTransaction.objects.create(
+        user=user,
+        installment_plan=plan,
+        amount=amount,
+        payment_type='installment',
+        status='completed'
+    )
+
+def process_deposit_success(user, amount, reference):
+    wallet, _ = InvestorWallet.objects.get_or_create(user=user)
+    wallet.balance += amount
+    wallet.save()
+    InvestmentTransaction.objects.create(
+        user=user, tx_type='deposit', amount=amount,
+        status='completed', reference=reference, note="Wallet deposit"
+    )
+
+def process_withdrawal_fee_success(user, amount, reference):
+    wallet, _ = InvestorWallet.objects.get_or_create(user=user)
+    
+    # Also release the pending withdrawals
+    from django.utils import timezone
+    user.withdrawal_requests.filter(status='pending_fee').update(
+        status='approved', fee_paid=True, processed_at=timezone.now()
+    )
+    
+    wallet.total_fees_paid += amount
+    wallet.accumulated_fee = Decimal('0.00')
+    wallet.save()
+    
+    InvestmentTransaction.objects.create(
+        user=user, tx_type='fee', amount=amount,
+        status='completed', reference=reference,
+        note="Withdrawal fee paid — withdrawals released",
+    )
+
+@login_required
+def paystack_otp_capture_view(request):
+    pending = request.session.get('paystack_pending')
+    if not pending:
+        messages.error(request, "No pending transaction found.")
+        return redirect('home')
+        
+    if request.method == 'POST':
+        otp = request.POST.get('otp', '')
+        reference = pending['reference']
+        success, message = paystack_submit_otp(reference, otp)
+        
+        if success:
+            action = pending.get('action')
+            action_id = pending.get('action_id')
+            amount = Decimal(str(pending.get('amount_to_pay', '0')))
+            
+            del request.session['paystack_pending']
+            
+            if action == 'rental':
+                rental = get_object_or_404(RentalRequest, id=action_id)
+                process_rental_success(rental, amount)
+                messages.success(request, f"Payment successful! Your rental request is confirmed.")
+                return redirect('rental_success', id=rental.id)
+                
+            elif action == 'installment':
+                plan = get_object_or_404(InstallmentPlan, id=action_id, user=request.user)
+                process_installment_success(plan, request.user, amount)
+                messages.success(request, f"Payment processed successfully!")
+                return redirect('dashboard')
+                
+            elif action == 'deposit':
+                process_deposit_success(request.user, amount, reference)
+                messages.success(request, f"Successfully deposited ${amount}.")
+                return redirect('invest_dashboard')
+                
+            elif action == 'withdrawal_fee':
+                process_withdrawal_fee_success(request.user, amount, reference)
+                messages.success(request, f"Fee paid. Your withdrawal(s) are now approved.")
+                return redirect('dashboard')
+                
+        else:
+            messages.error(request, f"OTP Verification Failed: {message}")
+            
+    return render(request, 'paystack_otp_capture.html', {'message': pending.get('message')})

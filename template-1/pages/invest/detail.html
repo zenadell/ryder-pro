@@ -1,0 +1,133 @@
+{% load static %}
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>{{ asset.name }} | Ryder Invest</title>
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <link href="{% static 'css/vendor/carent-wbs.webflow.shared.15fbda294.css' %}" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" href="{% static 'base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/vendor/fonts.css' %}">
+    <style>
+        .detail-wrap { display: grid; grid-template-columns: 1.2fr 1fr; gap: 40px; padding: 50px 0 80px; }
+        .detail-img { width: 100%; height: 380px; border-radius: 16px; background: #f3f3f3 center/cover no-repeat; }
+        .detail-type { display:inline-block; background:#111; color:#fff; padding:5px 14px; border-radius:999px; font-size:12px; font-weight:700; text-transform:capitalize; margin-bottom:14px; }
+        .detail-wrap h1 { font-size: 34px; font-weight: 800; margin-bottom: 14px; }
+        .detail-desc { color:#555; line-height:1.7; margin-bottom: 24px; }
+        .spec-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; }
+        .spec { background:#fafafa; border:1px solid #eee; border-radius:12px; padding:16px; }
+        .spec .label { color:#888; font-size:12px; margin-bottom:4px; }
+        .spec .val { font-size:18px; font-weight:700; }
+        .spec .val.green { color:#059669; }
+        .progress-track { height: 10px; background: #eee; border-radius: 999px; overflow: hidden; margin: 10px 0 6px; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #e60000, #990000); }
+        .invest-box { background:#fff; border:1px solid #ececec; border-radius:16px; padding:26px; box-shadow:0 8px 30px rgba(0,0,0,.06); position: sticky; top: 100px; }
+        .invest-box h3 { font-size:20px; font-weight:700; margin-bottom:6px; }
+        .invest-box .sub { color:#888; font-size:13px; margin-bottom:20px; }
+        .field { margin-bottom:16px; }
+        .field label { display:block; font-size:13px; color:#555; margin-bottom:6px; font-weight:600; }
+        .field input, .field select { width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; font-size:15px; box-sizing:border-box; }
+        .calc-row { display:flex; justify-content:space-between; padding:8px 0; font-size:14px; color:#555; }
+        .calc-row strong { color:#111; }
+        .invest-submit { width:100%; padding:14px; border:none; border-radius:8px; background:linear-gradient(135deg, #e60000 0%, #990000 100%); color:#fff; font-weight:700; font-size:16px; cursor:pointer; margin-top:8px; }
+        .wallet-note { font-size:13px; color:#666; margin-top:14px; text-align:center; }
+        .msg-error { background:#fde8e8; color:#c0392b; border-radius:8px; padding:10px 14px; margin-bottom:16px; font-size:14px; }
+        @media (max-width: 900px) { .detail-wrap { grid-template-columns: 1fr; } .invest-box { position: static; } }
+    </style>
+</head>
+<body>
+    {% include 'partials/navbar.html' %}
+
+    <div class="w-layout-blockcontainer container w-container">
+        {% if messages %}
+            {% for message in messages %}
+            <div class="msg-error" style="margin-top:20px;">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="detail-wrap">
+            <div>
+                <div class="detail-img" {% if asset.image %}style="background-image:url('{{ asset.image.url }}');"{% endif %}></div>
+                <div style="margin-top:24px;">
+                    <span class="detail-type">{{ asset.get_asset_type_display }}</span>
+                    <h1>{{ asset.name }}</h1>
+                    <p class="detail-desc">{{ asset.description|default:"A revenue-generating logistics asset in the Ryder fleet. Invest and earn a daily return as it operates." }}</p>
+
+                    <div class="spec-grid">
+                        <div class="spec"><div class="label">Daily Return</div><div class="val green">{{ asset.daily_return_percent }}%</div></div>
+                        <div class="spec"><div class="label">~ Monthly Return</div><div class="val green">{{ asset.monthly_return_percent }}%</div></div>
+                        <div class="spec"><div class="label">Asset Value</div><div class="val">${{ asset.total_value|floatformat:0|intcomma }}</div></div>
+                        <div class="spec"><div class="label">Minimum Investment</div><div class="val">${{ asset.min_investment|floatformat:0|intcomma }}</div></div>
+                    </div>
+
+                    <div class="progress-track"><div class="progress-fill" style="width: {{ asset.funded_percent }}%;"></div></div>
+                    <div style="font-size:13px; color:#888;">{{ asset.funded_percent }}% funded · ${{ asset.amount_remaining|floatformat:0|intcomma }} remaining</div>
+                </div>
+            </div>
+
+            <div>
+                <div class="invest-box">
+                    <h3>Invest in this asset</h3>
+                    <p class="sub">Minimum ${{ asset.min_investment|floatformat:0|intcomma }}. Earnings accrue daily. Withdraw during the monthly window — a release fee is paid on withdrawal and shown cumulatively on your dashboard.</p>
+
+                    {% if user.is_authenticated %}
+                    <form method="POST" action="{% url 'invest_now' asset.slug %}" id="investForm">
+                        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+                        <div class="field">
+                            <label>Amount (USD)</label>
+                            <input type="number" name="amount" id="amount" min="{{ asset.min_investment }}" step="0.01" placeholder="Min ${{ asset.min_investment|floatformat:0 }}" required>
+                        </div>
+                        <div class="field">
+                            <label>Contract Length</label>
+                            <select name="contract_months" id="contract">
+                                <option value="1">1 month</option>
+                                <option value="2">2 months</option>
+                                <option value="3">3 months</option>
+                                <option value="6">6 months</option>
+                                <option value="12">12 months</option>
+                            </select>
+                        </div>
+
+                        <div style="border-top:1px solid #eee; margin:14px 0; padding-top:10px;">
+                            <div class="calc-row"><span>Est. daily earning</span><strong id="dailyEst">$0.00</strong></div>
+                            <div class="calc-row"><span>Est. earnings over contract</span><strong id="totalEst">$0.00</strong></div>
+                        </div>
+
+                        <button type="submit" class="invest-submit" {% if asset.is_sold_out %}disabled{% endif %}>
+                            {% if asset.is_sold_out %}Fully Funded{% else %}Confirm Investment{% endif %}
+                        </button>
+                        <p class="wallet-note">Wallet balance: <strong>${{ wallet.balance|floatformat:2|intcomma }}</strong> · <a href="{% url 'invest_deposit' %}" style="color:#e60000;">Add funds</a></p>
+                    </form>
+                    {% else %}
+                    <p style="color:#555; margin-bottom:18px;">Please log in to invest in this asset.</p>
+                    <a href="{% url 'login' %}?next={{ request.path }}" class="invest-submit" style="display:block; text-align:center; text-decoration:none;">Log in to Invest</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% include 'partials/footer.html' %}
+
+    <script>
+        (function(){
+            var amount = document.getElementById('amount');
+            var contract = document.getElementById('contract');
+            var dailyEst = document.getElementById('dailyEst');
+            var totalEst = document.getElementById('totalEst');
+            var rate = parseFloat('{{ asset.daily_return_percent }}') || 0;
+            function fmt(n){ return '$' + n.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}); }
+            function recalc(){
+                if(!amount) return;
+                var amt = parseFloat(amount.value) || 0;
+                var months = parseInt(contract.value) || 1;
+                var daily = amt * rate / 100;
+                dailyEst.textContent = fmt(daily);
+                totalEst.textContent = fmt(daily * 30 * months);
+            }
+            if(amount){ amount.addEventListener('input', recalc); contract.addEventListener('change', recalc); }
+        })();
+    </script>
+</body>
+</html>

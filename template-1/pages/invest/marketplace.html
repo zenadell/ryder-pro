@@ -1,0 +1,93 @@
+{% load static %}
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Ryder Invest | Invest in Logistics Assets</title>
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <link href="{% static 'css/vendor/carent-wbs.webflow.shared.15fbda294.css' %}" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" href="{% static 'base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/vendor/fonts.css' %}">
+    <style>
+        .invest-hero { padding: 70px 0 30px; text-align: center; }
+        .invest-hero h1 { font-size: 44px; font-weight: 800; margin-bottom: 12px; }
+        .invest-hero p { color: #666; max-width: 640px; margin: 0 auto; font-size: 16px; }
+        .invest-filters { display: flex; gap: 10px; justify-content: center; margin: 24px 0 36px; flex-wrap: wrap; }
+        .invest-filters a { padding: 9px 20px; border-radius: 999px; border: 1px solid #e0e0e0; color: #333; text-decoration: none; font-size: 14px; font-weight: 600; transition: all .2s; }
+        .invest-filters a:hover, .invest-filters a.active { background: linear-gradient(135deg, #e60000 0%, #990000 100%); color: #fff; border-color: transparent; }
+        .invest-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; padding-bottom: 80px; }
+        .invest-card { background: #fff; border: 1px solid #ececec; border-radius: 16px; overflow: hidden; box-shadow: 0 6px 24px rgba(0,0,0,.05); transition: transform .2s, box-shadow .2s; display: flex; flex-direction: column; }
+        .invest-card:hover { transform: translateY(-4px); box-shadow: 0 14px 34px rgba(0,0,0,.1); }
+        .invest-card-img { height: 190px; background: #f3f3f3 center/cover no-repeat; position: relative; }
+        .invest-badge { position: absolute; top: 12px; left: 12px; background: rgba(0,0,0,.75); color: #fff; padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; text-transform: capitalize; }
+        .invest-badge.sold { background: #ef4444; }
+        .invest-card-body { padding: 20px; flex: 1; display: flex; flex-direction: column; }
+        .invest-card-body h3 { font-size: 19px; font-weight: 700; margin-bottom: 6px; }
+        .invest-meta { display: flex; justify-content: space-between; margin: 14px 0; }
+        .invest-meta .label { color: #888; font-size: 12px; }
+        .invest-meta .val { font-weight: 700; font-size: 15px; }
+        .invest-meta .val.green { color: #059669; }
+        .progress-track { height: 8px; background: #eee; border-radius: 999px; overflow: hidden; margin: 6px 0 4px; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #e60000, #990000); }
+        .progress-text { font-size: 12px; color: #888; margin-bottom: 16px; }
+        .invest-cta { margin-top: auto; display: block; text-align: center; padding: 12px; border-radius: 8px; background: linear-gradient(135deg, #e60000 0%, #990000 100%); color: #fff; font-weight: 700; text-decoration: none; }
+        .invest-cta.disabled { background: #ccc; pointer-events: none; }
+        @media (max-width: 991px) { .invest-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 640px) { .invest-grid { grid-template-columns: 1fr; } .invest-hero h1 { font-size: 32px; } }
+    </style>
+</head>
+<body>
+    {% include 'partials/navbar.html' %}
+
+    <div class="w-layout-blockcontainer container w-container">
+        <div class="invest-hero">
+            <h1>Ryder Invest</h1>
+            <p>Own a stake in our logistics fleet. Invest in trucks, vans and bikes that earn daily — and watch your portfolio grow.</p>
+        </div>
+
+        <div class="invest-filters">
+            <a href="{% url 'invest_marketplace' %}" class="{% if not active_type %}active{% endif %}">All Assets</a>
+            <a href="?type=truck" class="{% if active_type == 'truck' %}active{% endif %}">Trucks</a>
+            <a href="?type=van" class="{% if active_type == 'van' %}active{% endif %}">Vans</a>
+            <a href="?type=bike" class="{% if active_type == 'bike' %}active{% endif %}">Bikes</a>
+        </div>
+
+        {% if assets %}
+        <div class="invest-grid">
+            {% for asset in assets %}
+            <div class="invest-card">
+                <div class="invest-card-img" {% if asset.image %}style="background-image: url('{{ asset.image.url }}');"{% endif %}>
+                    <span class="invest-badge {% if asset.is_sold_out %}sold{% endif %}">
+                        {% if asset.is_sold_out %}Fully Funded{% else %}{{ asset.get_asset_type_display }}{% endif %}
+                    </span>
+                </div>
+                <div class="invest-card-body">
+                    <h3>{{ asset.name }}</h3>
+                    <div class="invest-meta">
+                        <div>
+                            <div class="label">Daily Return</div>
+                            <div class="val green">{{ asset.daily_return_percent }}%</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div class="label">Min. Invest</div>
+                            <div class="val">${{ asset.min_investment|floatformat:0|intcomma }}</div>
+                        </div>
+                    </div>
+                    <div class="progress-track"><div class="progress-fill" style="width: {{ asset.funded_percent }}%;"></div></div>
+                    <div class="progress-text">{{ asset.funded_percent }}% funded of ${{ asset.total_value|floatformat:0|intcomma }}</div>
+                    <a href="{% url 'invest_asset_detail' asset.slug %}" class="invest-cta {% if asset.is_sold_out %}disabled{% endif %}">
+                        {% if asset.is_sold_out %}Fully Funded{% else %}Invest Now{% endif %}
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="text-align:center; color:#888; padding: 60px 0 120px;">No investment assets available right now. Please check back soon.</p>
+        {% endif %}
+    </div>
+
+    {% include 'partials/footer.html' %}
+</body>
+</html>

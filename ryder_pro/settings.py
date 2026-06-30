@@ -181,4 +181,4 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 import os
 # Stripe Configuration
-STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '')
+PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY', '')

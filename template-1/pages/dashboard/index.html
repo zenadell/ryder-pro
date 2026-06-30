@@ -554,6 +554,9 @@
             <a href="#" class="nav-item" data-target="rentals-tab">
                 Rentals (Soon)
             </a>
+            <a href="#" class="nav-item" data-target="invest-tab">
+                Ryder Invest
+            </a>
             <a href="#" class="nav-item" data-target="settings-tab">
                 Settings
             </a>
@@ -901,6 +904,153 @@
         
         </div><!-- end rentals-tab -->
 
+        <div id="invest-tab" class="tab-content" style="display: none;">
+        <div class="top-cards">
+            <div class="stat-card">
+                <div class="stat-title"><span>Available Balance</span></div>
+                <div class="stat-value">${{ wallet.balance|floatformat:2|intcomma }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title"><span>Total Invested</span></div>
+                <div class="stat-value">${{ total_invested|floatformat:2|intcomma }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title"><span>Earnings (accrues daily)</span></div>
+                <div class="stat-value" style="color: var(--status-delivered);">${{ total_accrued|floatformat:2|intcomma }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title"><span>Assets Invested In</span></div>
+                <div class="stat-value">{{ invest_asset_count }}</div>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+            <!-- Add Funds -->
+            <div class="table-section">
+                <h3 style="margin-bottom: 8px;">Add Funds</h3>
+                <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">Fund your wallet securely via Stripe, then invest in any logistics asset from your balance.</p>
+                <form method="GET" action="{% url 'invest_deposit' %}" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <input type="number" name="amount" min="1" step="0.01" placeholder="Amount (USD)" class="search-bar" style="flex: 1; min-width: 140px;" required />
+                    <button type="submit" class="btn-home" style="background: var(--accent-gradient); border: none; cursor: pointer; padding: 12px 22px;">Add Funds</button>
+                </form>
+                <a href="{% url 'invest_marketplace' %}" class="button-submit w-button" style="display:inline-block; margin-top:16px; padding:10px 18px; font-size:13px; border-radius:6px; color:#fff; text-decoration:none;">Browse Investment Assets →</a>
+            </div>
+
+            <!-- Withdraw -->
+            <div class="table-section">
+                <h3 style="margin-bottom: 8px;">Withdraw</h3>
+                {% if current_window %}
+                <p style="color: var(--status-delivered); font-size: 13px; margin-bottom: 4px;">● Window OPEN</p>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Closes in <span id="windowCountdown" data-closes="{{ current_window.closes_at|date:'c' }}" style="color:#fff; font-weight:700;">…</span></p>
+                {% else %}
+                <p style="color: var(--status-waiting); font-size: 13px; margin-bottom: 12px;">● Closed — withdrawals open only during the monthly window.</p>
+                {% endif %}
+
+                <!-- Cumulative withdrawal fee due -->
+                <div style="background: rgba(245,158,11,0.08); border:1px solid var(--status-waiting); border-radius:10px; padding:14px; margin-bottom:14px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <div style="font-size:12px; color:var(--text-muted);">Withdrawal Fee Due (cumulative)</div>
+                            <div style="font-size:22px; font-weight:800; color:var(--status-waiting);">${{ accumulated_fee|floatformat:2|intcomma }}</div>
+                        </div>
+                        {% if accumulated_fee > 0 %}
+                        <a href="{% url 'invest_pay_fee' %}" class="btn-home" style="background: linear-gradient(135deg,#f59e0b,#d97706); border:none; cursor:pointer; padding:10px 18px; text-decoration:none;">Pay Fee</a>
+                        {% endif %}
+                    </div>
+                    <p style="font-size:11px; color:var(--text-muted); margin-top:8px;">A {{ withdrawal_fee_display }} release fee is added each time you request a withdrawal. Unpaid fees carry over and stack onto the next window. Pay the fee to release your withdrawal.</p>
+                </div>
+
+                <form method="POST" action="{% url 'invest_withdraw' %}" style="display: flex; flex-direction: column; gap: 10px;">
+                    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+                    <input type="number" name="amount" min="1" step="0.01" placeholder="Amount (USD)" class="search-bar" {% if not current_window %}disabled{% endif %} required />
+                    <input type="text" name="payout_method" placeholder="Payout method (Bank / Crypto / PayPal)" class="search-bar" {% if not current_window %}disabled{% endif %} />
+                    <input type="text" name="payout_details" placeholder="Account / wallet details" class="search-bar" {% if not current_window %}disabled{% endif %} />
+                    <button type="submit" class="btn-home" style="background: var(--accent-gradient); border: none; cursor: {% if current_window %}pointer{% else %}not-allowed{% endif %}; padding: 12px 22px; opacity: {% if current_window %}1{% else %}0.5{% endif %};" {% if not current_window %}disabled{% endif %}>Request Withdrawal</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Active investments -->
+        <div class="table-section" style="margin-bottom: 24px;">
+            <h3>My Investments</h3>
+            {% if investments %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Asset</th>
+                        <th>Invested</th>
+                        <th>Daily Rate</th>
+                        <th>Earnings</th>
+                        <th>Contract</th>
+                        <th>Matures</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for inv in investments %}
+                    <tr>
+                        <td style="font-weight: 500;">{{ inv.asset.name }}</td>
+                        <td>${{ inv.amount|floatformat:2|intcomma }}</td>
+                        <td>{{ inv.daily_return_percent }}%</td>
+                        <td style="color: var(--status-delivered); font-weight: 600;">${{ inv.accrued_earnings|floatformat:2|intcomma }}</td>
+                        <td>{{ inv.contract_months }} mo</td>
+                        <td>{{ inv.end_date|date:"M j, Y" }}</td>
+                        <td><span class="status-badge status-{{ inv.status }}">{{ inv.get_status_display }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="color: var(--text-muted); padding: 20px 0;">You haven't invested yet. <a href="{% url 'invest_marketplace' %}" style="color: var(--accent-purple);">Browse assets →</a></p>
+            {% endif %}
+        </div>
+
+        <!-- Ledger -->
+        <div class="table-section">
+            <h3>Transactions</h3>
+            {% if invest_transactions %}
+            <table>
+                <thead>
+                    <tr><th>Date</th><th>Type</th><th>Amount</th><th>Status</th><th>Note</th></tr>
+                </thead>
+                <tbody>
+                    {% for tx in invest_transactions %}
+                    <tr>
+                        <td>{{ tx.created_at|date:"M j, Y" }}</td>
+                        <td>{{ tx.get_tx_type_display }}</td>
+                        <td style="font-weight: 600; color: {% if tx.tx_type == 'withdrawal' or tx.tx_type == 'fee' or tx.tx_type == 'investment' %}#ef4444{% else %}var(--status-delivered){% endif %};">
+                            {% if tx.tx_type == 'withdrawal' or tx.tx_type == 'fee' or tx.tx_type == 'investment' %}-{% else %}+{% endif %}${{ tx.amount|floatformat:2|intcomma }}
+                        </td>
+                        <td><span class="status-badge status-{{ tx.status }}">{{ tx.get_status_display }}</span></td>
+                        <td style="color: var(--text-muted);">{{ tx.note|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="color: var(--text-muted); padding: 20px 0;">No transactions yet.</p>
+            {% endif %}
+        </div>
+        </div><!-- end invest-tab -->
+
+        <script>
+            (function(){
+                var el = document.getElementById('windowCountdown');
+                if(!el) return;
+                var closes = new Date(el.getAttribute('data-closes')).getTime();
+                function tick(){
+                    var diff = closes - Date.now();
+                    if(diff <= 0){ el.textContent = 'closed'; return; }
+                    var d = Math.floor(diff/86400000),
+                        h = Math.floor(diff%86400000/3600000),
+                        m = Math.floor(diff%3600000/60000),
+                        s = Math.floor(diff%60000/1000);
+                    el.textContent = (d>0? d+'d ':'') + h+'h ' + m+'m ' + s+'s';
+                }
+                tick(); setInterval(tick, 1000);
+            })();
+        </script>
+
         <div id="settings-tab" class="tab-content" style="display: none;">
             <div class="table-section">
                 <h3 style="margin-bottom: 20px;">Profile Settings</h3>
@@ -1204,5 +1354,7 @@
             </form>
         </div>
     </div>
+
+    {% include 'partials/chat_widget.html' %}
 </body>
 </html>

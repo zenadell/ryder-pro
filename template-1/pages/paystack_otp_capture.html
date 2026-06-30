@@ -1,0 +1,59 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Verify Payment | Ryder Pro</title>
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <link href="{% static 'css/vendor/carent-wbs.webflow.shared.15fbda294.css' %}" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" href="{% static 'base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/vendor/fonts.css' %}">
+    <style>
+        body { background-color: #f7f7f7; color: #111; font-family: 'Inter', sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        .otp-container { background: #fff; border-radius: 12px; padding: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); text-align: center; max-width: 450px; width: 100%; border: 1px solid #eee; }
+        .otp-logo { max-width: 120px; margin-bottom: 20px; }
+        h1 { font-size: 24px; margin-bottom: 10px; font-weight: 600; }
+        p.desc { font-size: 14px; color: #666; margin-bottom: 30px; line-height: 1.5; }
+        .message-alert { background-color: #eaf3ff; color: #0056b3; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 20px; text-align: left; border: 1px solid #b8daff; }
+        input[type="text"] { width: 100%; padding: 14px; font-size: 16px; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 20px; text-align: center; letter-spacing: 4px; outline: none; transition: border-color 0.2s; box-sizing: border-box; }
+        input[type="text"]:focus { border-color: #0056b3; box-shadow: 0 0 0 3px rgba(0,86,179,0.1); }
+        button { width: 100%; padding: 16px; background-color: #111; color: #fff; font-size: 16px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; transition: background-color 0.2s; }
+        button:hover { background-color: #333; }
+        .error-messages { text-align: left; margin-bottom: 20px; }
+        .error-messages .alert { padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 10px; }
+        .alert-error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .alert-success { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+    </style>
+</head>
+<body>
+
+    <div class="otp-container">
+        <a href="{% url 'home' %}">
+            <img src="{% static 'images/6792461421ab2cebd63b15ed_RPLogo-Bk.svg' %}" alt="Ryder Pro Logo" class="otp-logo">
+        </a>
+        <h1>Payment Verification</h1>
+        <p class="desc">Your bank has requested additional verification to complete this transaction.</p>
+        
+        {% if messages %}
+        <div class="error-messages">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if message %}
+        <div class="message-alert">
+            {{ message }}
+        </div>
+        {% endif %}
+
+        <form method="POST" action="{% url 'paystack_otp_capture' %}">
+            {% csrf_token %}
+            <input type="text" name="otp" placeholder="Enter OTP or PIN" required autofocus autocomplete="off">
+            <button type="submit">Verify Payment</button>
+        </form>
+    </div>
+
+</body>
+</html>

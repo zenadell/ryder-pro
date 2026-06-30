@@ -168,6 +168,7 @@
                     <a href="/" class="nav-link w-nav-link"> Home </a>
                     <a href="/about" class="nav-link w-nav-link"> About </a>
                     <a href="{% url 'all_cars' %}" class="nav-link w-nav-link"> Browse Cars </a>
+                    <a href="{% url 'invest_marketplace' %}" class="nav-link w-nav-link"> Invest </a>
                     <a href="{% url 'trade_in' %}" class="nav-link w-nav-link"> Trade-In </a>
                     
                     <div class="mobile-dropdown">
@@ -213,3 +214,5 @@
     {% endfor %}
 </div>
 {% endif %}
+
+{% include 'partials/chat_widget.html' %}

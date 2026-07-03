@@ -1367,7 +1367,8 @@ Instructions:
 - Be concise but thorough. Use bullet points and formatting.
 - If asked about a specific user, provide all relevant data about them.
 - If asked about locations, reference city and country data.
-- Always be helpful and professional."""
+- Always be helpful and professional.
+- CRITICAL: You MUST answer exclusively in English. Under NO circumstances should you reply in Chinese or any other language."""
 
             # Use ChatConfig for DeepSeek integration
             from .models import ChatConfig

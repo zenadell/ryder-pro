@@ -13,7 +13,7 @@ Notifications.setNotificationHandler({
   }),
 });
 
-const BACKEND_URL = 'http://192.168.29.238:8000';
+const BACKEND_URL = 'https://www.ryder-pro.com';
 
 export default function App() {
   const [expoPushToken, setExpoPushToken] = useState('');

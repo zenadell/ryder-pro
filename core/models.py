@@ -476,6 +476,9 @@ class InvestmentAsset(models.Model):
         ('truck', 'Truck'),
         ('van', 'Van'),
         ('bike', 'Bike'),
+        ('car', 'Car'),
+        ('tractor', 'Tractor'),
+        ('bus', 'Bus'),
     ]
     name = models.CharField(max_length=255, help_text="e.g. 'Mack Anthem Long-Haul #1'")
     slug = models.SlugField(unique=True, blank=True)

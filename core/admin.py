@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils.html import format_html
 from .models import (
     SiteContent, NewsletterSubscriber, ContactMessage, TeamMember, BlogPost,
     Category, VehicleFeature, Vehicle, VehicleImage, Review,
@@ -7,11 +8,44 @@ from .models import (
     InvestmentAsset, Investment, InvestorWallet, InvestmentTransaction,
     WithdrawalWindow, WithdrawalRequest,
     ChatConfig, ChatConversation, ChatMessage,
+    UserProfile,
 )
 from django.urls import path
 from django.template.response import TemplateResponse
 from .utils import process_bulk_import
 from django.contrib import messages
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.models import User
+
+# ---- UserProfile inline on User admin ----
+class UserProfileInline(admin.StackedInline):
+    model = UserProfile
+    can_delete = False
+    verbose_name_plural = 'Geolocation & Profile'
+    readonly_fields = ('ip_address', 'city', 'country', 'country_code', 'latitude', 'longitude', 'last_login_at')
+    fields = ('ip_address', 'city', 'country', 'country_code', 'latitude', 'longitude', 'last_login_at')
+
+class CustomUserAdmin(BaseUserAdmin):
+    inlines = list(BaseUserAdmin.inlines) + [UserProfileInline]
+    list_display = ('username', 'email', 'first_name', 'last_name', 'is_active', 'is_staff', 'get_location')
+    
+    def get_location(self, obj):
+        try:
+            p = obj.profile
+            if p.country:
+                flag = ''
+                if p.country_code:
+                    flag = format_html('<img src="https://flagcdn.com/16x12/{}.png" style="vertical-align:middle;margin-right:4px;" />', p.country_code.lower())
+                return format_html('{}{}, {}', flag, p.city or "", p.country)
+        except UserProfile.DoesNotExist:
+            pass
+        return '—'
+    get_location.short_description = 'Location'
+
+# Unregister default User admin and register our custom one
+admin.site.unregister(User)
+admin.site.register(User, CustomUserAdmin)
+
 
 @admin.register(BulkImport)
 class BulkImportAdmin(admin.ModelAdmin):

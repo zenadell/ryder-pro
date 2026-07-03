@@ -1,10 +1,13 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import login
+from django.contrib.auth import login, logout, get_user_model
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.urls import reverse
+from django.contrib.auth.forms import AuthenticationForm
 from .forms import CustomUserCreationForm
 from ryder_pro.supabase_client import get_supabase
+from core.emails import send_welcome_email
 
 def signup_view(request):
     if request.method == 'POST':
@@ -30,6 +33,10 @@ def signup_view(request):
             user = form.save()
             user.email = email
             user.save()
+            
+            # Send automated welcome email
+            send_welcome_email(user)
+            
             login(request, user, backend='django.contrib.auth.backends.ModelBackend')
             messages.success(request, 'Account created successfully! Welcome to Ryder Pro.')
             return redirect('dashboard')
@@ -76,6 +83,10 @@ def oauth_callback(request):
                     user.email = email
                     user.set_unusable_password()
                     user.save()
+                    
+                    # Send automated welcome email
+                    send_welcome_email(user)
+                    
                 login(request, user, backend='django.contrib.auth.backends.ModelBackend')
                 messages.success(request, 'Successfully logged in!')
                 return redirect('dashboard')

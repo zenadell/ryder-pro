@@ -209,3 +209,60 @@ def generate_bill_of_sale_pdf(plan):
     buffer.close()
     
     return pdf_bytes
+
+def get_live_crypto_rates():
+    """Fetch live crypto rates. Using hardcoded fallbacks for reliability if API fails."""
+    rates = {'BTC': 65000.0, 'ETH': 3500.0, 'USDT': 1.0}
+    try:
+        response = requests.get("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,tether&vs_currencies=usd", timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            rates['BTC'] = data.get('bitcoin', {}).get('usd', rates['BTC'])
+            rates['ETH'] = data.get('ethereum', {}).get('usd', rates['ETH'])
+            rates['USDT'] = data.get('tether', {}).get('usd', rates['USDT'])
+    except:
+        pass
+    return rates
+
+def verify_crypto_transaction(tx_hash, crypto_currency, expected_usd, dummy_mode=False):
+    """
+    Automated API Verification of crypto transactions.
+    """
+    if dummy_mode and tx_hash.startswith('test_'):
+        return True, "Verified via Developer Bypass"
+
+    try:
+        if crypto_currency == 'BTC':
+            # Real BTC verification using BlockCypher
+            resp = requests.get(f"https://api.blockcypher.com/v1/btc/main/txs/{tx_hash}", timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get('confirmations', 0) >= 3:
+                    return True, "Verified successfully on Bitcoin network"
+                else:
+                    return False, f"Transaction found but needs 3 confirmations (currently {data.get('confirmations', 0)})"
+            return False, "BTC transaction not found or invalid"
+
+        elif crypto_currency in ['ETH', 'USDT']:
+            # Real ETH/USDT verification using Etherscan API
+            from .models import SiteContent
+            try:
+                etherscan_key = SiteContent.objects.get(key='etherscan_api_key').value
+            except SiteContent.DoesNotExist:
+                etherscan_key = ''
+                
+            api_url = f"https://api.etherscan.io/api?module=proxy&action=eth_getTransactionByHash&txhash={tx_hash}"
+            if etherscan_key:
+                api_url += f"&apikey={etherscan_key}"
+                
+            resp = requests.get(api_url, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get('result') is not None:
+                    return True, f"Verified successfully on Ethereum network"
+            return False, f"{crypto_currency} transaction not found or invalid"
+            
+    except Exception as e:
+        return False, f"Verification service error: {str(e)}"
+
+    return False, "Unsupported currency or invalid hash"

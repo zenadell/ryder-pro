@@ -1,0 +1,20 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+    <h1>Welcome to Ryder Pro, {{ name }}!</h1>
+    
+    <p>We're thrilled to have you join our platform. Ryder Pro is your one-stop destination for premium car rentals, vehicle financing, and trade-in services.</p>
+    
+    <p>Here are a few things you can do to get started:</p>
+    <ul>
+        <li><strong>Rent a Car:</strong> Browse our exclusive fleet of luxury and standard vehicles.</li>
+        <li><strong>Apply for Financing:</strong> Drive your dream car today with our flexible installment plans.</li>
+        <li><strong>Invest with Us:</strong> Grow your wealth by funding vehicle pools through our secure investment platform.</li>
+    </ul>
+    
+    <div style="text-align: center; margin-top: 30px;">
+        <a href="https://www.ryder-pro.com/dashboard/" class="btn">Go to Dashboard</a>
+    </div>
+    
+    <p style="margin-top: 30px;">If you have any questions or need assistance, simply reply to this email. We're here to help!</p>
+{% endblock %}

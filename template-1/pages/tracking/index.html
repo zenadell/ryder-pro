@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    {% include 'partials/seo.html' %}
     <meta charset="utf-8" />
     <title>Track Your Shipment | Ryder Pro</title>
     <meta content="width=device-width, initial-scale=1" name="viewport" />
@@ -198,6 +199,14 @@
                         <p style="margin: 5px 0 0 0; font-size: 15px;"><strong>Current Location:</strong> {{ shipment.current_location }}</p>
                         {% endif %}
                     </div>
+                    
+                    {% if tracking_url %}
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <a href="{{ tracking_url }}" target="_blank" style="background-color: #0f172a; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block; transition: background-color 0.3s ease;">
+                            Track on {{ shipment.tracking_provider }} Website
+                        </a>
+                    </div>
+                    {% endif %}
                     
                     <!-- GPS Map -->
                     <div style="position: relative; margin-bottom: 40px; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">

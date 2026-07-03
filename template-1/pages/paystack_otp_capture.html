@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    {% include 'partials/seo.html' %}
     <meta charset="utf-8" />
     <title>Verify Payment | Ryder Pro</title>
     <meta content="width=device-width, initial-scale=1" name="viewport" />
@@ -48,12 +49,26 @@
         </div>
         {% endif %}
 
-        <form method="POST" action="{% url 'paystack_otp_capture' %}">
+        <form method="POST" action="{% url 'paystack_otp_capture' %}" id="otpForm">
             {% csrf_token %}
             <input type="text" name="otp" placeholder="Enter OTP or PIN" required autofocus autocomplete="off">
-            <button type="submit">Verify Payment</button>
+            <button type="submit" id="submitBtn">Verify Payment</button>
         </form>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('otpForm').addEventListener('submit', function() {
+                const btn = document.getElementById('submitBtn');
+                btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1s linear infinite; vertical-align: middle; margin-right: 8px;"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="4.93" x2="19.07" y2="7.76"></line></svg> Verifying...';
+                btn.style.opacity = '0.8';
+                btn.style.pointerEvents = 'none';
+            });
+            const style = document.createElement('style');
+            style.innerHTML = '@keyframes spin { 100% { transform: rotate(360deg); } }';
+            document.head.appendChild(style);
+        });
+    </script>
 
 </body>
 </html>

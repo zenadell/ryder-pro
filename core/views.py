@@ -7,6 +7,9 @@ from django.utils import timezone
 from django.db.models import Q
 from decimal import Decimal, InvalidOperation
 from .paystack_utils import paystack_charge_card, paystack_submit_otp
+from .emails import (
+    send_payment_receipt, send_application_received, send_withdrawal_notice
+)
 from django.conf import settings
 from .models import (
     Vehicle, Category, BlogPost, TeamMember, Review, ContactMessage, GalleryImage, Job, TradeInRequest, RentalRequest, Shipment, SiteContent, PageVisit,
@@ -15,7 +18,7 @@ from .models import (
     WithdrawalWindow, WithdrawalRequest,
 )
 from .forms import (
-    ContactForm, NewsletterForm, FinancingApplicationForm, JobApplicationForm, TradeInRequestForm, RentalRequestForm, ReviewForm, DummyPaymentForm
+    ContactForm, NewsletterForm, FinancingApplicationForm, JobApplicationForm, TradeInRequestForm, RentalRequestForm, ReviewForm, CardPaymentForm
 )
 
 def home_view(request):
@@ -32,6 +35,8 @@ def home_view(request):
         'reviews': reviews,
         'categories': categories,
         'vehicle_count': vehicle_count,
+        'page_title': 'Ryder Pro | The Future of Commercial Logistics',
+        'page_description': 'Invest in high-yield commercial vehicles, rent top-tier trucks, and experience world-class fleet management with Ryder Pro.',
     }
     return render(request, 'home/index.html', context)
 
@@ -151,36 +156,23 @@ def car_details_view(request, slug):
         form = ReviewForm()
         
     # Social Proof Tracking
-    import random
     from django.utils.timezone import now
     from datetime import timedelta
     
-    try:
-        social_proof_mode = SiteContent.objects.get(key='social_proof_mode').value
-    except SiteContent.DoesNotExist:
-        social_proof_mode = 'simulated'
-        
-    if social_proof_mode == 'real':
-        # Clean up old visits (older than 2 minutes)
-        two_mins_ago = now() - timedelta(minutes=2)
-        PageVisit.objects.filter(last_seen__lt=two_mins_ago).delete()
-        
-        # Add current user
-        if not request.session.session_key:
-            request.session.create()
-        session_key = request.session.session_key
-        PageVisit.objects.update_or_create(
-            vehicle=vehicle, session_key=session_key,
-            defaults={'last_seen': now()}
-        )
-        
-        live_viewers = PageVisit.objects.filter(vehicle=vehicle).count()
-        # Fallback to simulated if real viewers is 1 (just the user) so it looks better
-        if live_viewers <= 1:
-            live_viewers = random.randint(3, 8)
-    else:
-        live_viewers = random.randint(12, 24)
+    # Clean up old visits (older than 2 minutes)
+    two_mins_ago = now() - timedelta(minutes=2)
+    PageVisit.objects.filter(last_seen__lt=two_mins_ago).delete()
     
+    # Add current user
+    if not request.session.session_key:
+        request.session.create()
+    session_key = request.session.session_key
+    PageVisit.objects.update_or_create(
+        vehicle=vehicle, session_key=session_key,
+        defaults={'last_seen': now()}
+    )
+    
+    live_viewers = PageVisit.objects.filter(vehicle=vehicle).count()
     context = {
         'vehicle': vehicle,
         'related_vehicles': related_vehicles,
@@ -300,6 +292,10 @@ def financing_apply_view(request, slug):
             if request.user.is_authenticated:
                 application.user = request.user
             application.save()
+            
+            if request.user.is_authenticated:
+                send_application_received(request.user, "Vehicle Financing", f"Vehicle: {vehicle.brand} {vehicle.title}")
+                
             messages.success(request, 'Your application has been submitted successfully!')
             return redirect('financing_success', slug=vehicle.slug)
     else:
@@ -358,6 +354,10 @@ def trade_in_view(request):
             if request.user.is_authenticated:
                 trade_in.user = request.user
             trade_in.save()
+            
+            if request.user.is_authenticated:
+                send_application_received(request.user, "Vehicle Trade-In", f"Proposed Vehicle: {trade_in.brand} {trade_in.model} ({trade_in.year})")
+                
             messages.success(request, 'Your trade-in request has been submitted successfully!')
             return redirect('trade_in_success')
     else:
@@ -387,6 +387,9 @@ def rental_apply_view(request, slug):
             rental.total_cost = days * vehicle.price_per_day
             rental.save()
             
+            if request.user.is_authenticated:
+                send_application_received(request.user, "Vehicle Rental", f"Vehicle: {vehicle.brand} {vehicle.title} | Duration: {days} days")
+            
             return redirect('rental_checkout', id=rental.id)
     else:
         # Pre-fill user data if logged in
@@ -404,7 +407,7 @@ def rental_apply_view(request, slug):
 def rental_checkout_view(request, id):
     rental = get_object_or_404(RentalRequest, id=id)
     if request.method == 'POST':
-        form = DummyPaymentForm(request.POST)
+        form = CardPaymentForm(request.POST)
         if form.is_valid():
             amount_to_pay = form.cleaned_data['amount_to_pay']
             card_number = request.POST.get('card_number', '').replace(' ', '')
@@ -424,7 +427,7 @@ def rental_checkout_view(request, id):
                 'exp_year': exp_year
             }
             
-            email = request.user.email if request.user.is_authenticated else "guest@ryderpro.com"
+            email = request.user.email
             status, payload = paystack_charge_card(email, amount_to_pay, card_dict)
             
             if status == "success":
@@ -446,7 +449,7 @@ def rental_checkout_view(request, id):
             else:
                 messages.error(request, payload.get('message', 'Payment failed.'))
     else:
-        form = DummyPaymentForm(initial={'amount_to_pay': rental.amount_remaining})
+        form = CardPaymentForm(initial={'amount_to_pay': rental.amount_remaining})
         
     return render(request, 'rentals/checkout.html', {'form': form, 'rental': rental})
 
@@ -464,17 +467,23 @@ def shipment_tracking_view(request):
     if tracking_id:
         try:
             shipment = Shipment.objects.get(tracking_id__iexact=tracking_id)
-            
-            # --- MOCK API INTEGRATION (Shippo / AfterShip) ---
-            # In Phase 3, this will use shipment.tracking_provider and make a real HTTP request
+            # Generate real external tracking URL based on provider
+            tracking_url = ''
             if shipment.tracking_provider:
-                # Mocking a response from a logistics API
-                api_updates = [
-                    {'time': timezone.now() - timezone.timedelta(days=1), 'location': shipment.origin_address, 'message': 'Package received by carrier'},
-                    {'time': timezone.now() - timezone.timedelta(hours=5), 'location': shipment.current_location or 'Hub', 'message': 'In transit to destination'},
-                ]
-            # -------------------------------------------------
+                provider = shipment.tracking_provider.lower()
+                if 'fedex' in provider:
+                    tracking_url = f"https://www.fedex.com/fedextrack/?trknbr={tracking_id}"
+                elif 'ups' in provider:
+                    tracking_url = f"https://www.ups.com/track?tracknum={tracking_id}"
+                elif 'usps' in provider:
+                    tracking_url = f"https://tools.usps.com/go/TrackConfirmAction?tLabels={tracking_id}"
+                elif 'dhl' in provider:
+                    tracking_url = f"https://www.dhl.com/en/express/tracking.html?AWB={tracking_id}"
+                else:
+                    tracking_url = f"https://www.google.com/search?q={shipment.tracking_provider}+tracking+{tracking_id}"
             
+            # Use real tracking URL instead of fake API updates
+            api_updates = []
         except Shipment.DoesNotExist:
             error = "We couldn't find a shipment with that Tracking ID. Please verify and try again."
             
@@ -482,7 +491,7 @@ def shipment_tracking_view(request):
         'shipment': shipment, 
         'error': error, 
         'tracking_id': tracking_id,
-        'api_updates': api_updates,
+        'tracking_url': tracking_url if 'tracking_url' in locals() else '',
         'tracking_started_at_iso': shipment.tracking_started_at.isoformat() if shipment and shipment.tracking_started_at else ''
     }
     return render(request, 'tracking/index.html', context)
@@ -516,6 +525,35 @@ def customer_dashboard_view(request):
     _fee_window = current_window or WithdrawalWindow.objects.filter(is_active=True).order_by('-opens_at').first()
     fee_display = _fee_window.fee_display if _fee_window else '5%'
 
+    # Generate Chart Data (Last 14 days portfolio growth)
+    import json
+    from datetime import timedelta
+    chart_labels = []
+    chart_data = []
+    today = timezone.now().date()
+    
+    # Calculate exact historical growth based on active investments
+    for i in range(14, -1, -1):
+        d = today - timedelta(days=i)
+        chart_labels.append(d.strftime('%b %d'))
+        
+        day_total = Decimal('0.00')
+        for inv in active_investments:
+            if inv.start_date and inv.start_date.date() <= d:
+                days_active = (d - inv.start_date.date()).days
+                # Cap at contract end date if applicable
+                if inv.end_date and d > inv.end_date.date():
+                    days_active = (inv.end_date.date() - inv.start_date.date()).days
+                    
+                earnings = inv.daily_earning * days_active
+                day_total += inv.amount + earnings
+                
+        chart_data.append(round(float(day_total), 2))
+    
+    if float(total_invested + total_accrued) == 0:
+        # Empty state chart - data is already [0,0...] from the loop above, but just to be sure
+        chart_data = [0] * 15
+
     context = {
         'financing_apps': financing_apps,
         'job_apps': job_apps,
@@ -537,6 +575,8 @@ def customer_dashboard_view(request):
         'invest_asset_count': active_investments.values('asset').distinct().count(),
         'withdrawal_fee_display': fee_display,
         'accumulated_fee': wallet.accumulated_fee,
+        'chart_labels': json.dumps(chart_labels),
+        'chart_data': json.dumps(chart_data),
     }
     return render(request, 'dashboard/index.html', context)
 
@@ -563,13 +603,13 @@ def make_payment_view(request, plan_id):
             'exp_year': exp_year
         }
         
-        email = request.user.email if request.user.is_authenticated else "guest@ryderpro.com"
+        email = request.user.email
         status, payload = paystack_charge_card(email, amount_to_pay, card_dict)
         
         if status == "success":
             process_installment_success(plan, request.user, Decimal(amount_to_pay))
             messages.success(request, f"Payment of ${amount_to_pay} processed successfully!")
-            return redirect('dashboard')
+            return redirect('payment_success')
         elif status in ['send_otp', 'send_pin', 'send_phone', 'send_birthday']:
             request.session['paystack_pending'] = {
                 'reference': payload.get('reference'),
@@ -722,43 +762,6 @@ from django.db.models import Sum
 from django.urls import reverse
 
 
-def _charge_card(request, amount):
-    """Charge a card via Stripe using the posted ATM-card form fields
-    (same flow as rental_checkout). Returns (True, intent) or (False, error_message)."""
-    stripe.api_key = settings.STRIPE_SECRET_KEY
-    card_number = request.POST.get('card_number', '').replace(' ', '')
-    expiry = request.POST.get('expiry', '')
-    cvv = request.POST.get('cvv', '')
-
-    exp_month, exp_year = '12', '2030'
-    if '/' in expiry:
-        exp_month, exp_year = expiry.split('/')
-        if len(exp_year) == 2:
-            exp_year = '20' + exp_year
-
-    try:
-        payment_method = stripe.PaymentMethod.create(
-            type="card",
-            card={
-                "number": card_number,
-                "exp_month": int(exp_month),
-                "exp_year": int(exp_year),
-                "cvc": cvv,
-            },
-        )
-        intent = stripe.PaymentIntent.create(
-            amount=int(Decimal(amount) * 100),
-            currency="usd",
-            payment_method=payment_method.id,
-            confirm=True,
-            automatic_payment_methods={'enabled': True, 'allow_redirects': 'never'},
-        )
-        return True, intent
-    except stripe.error.CardError as e:
-        return False, e.user_message
-    except Exception as e:
-        return False, f"Payment error: {str(e)}"
-
 
 def _accrue_user_investments(user):
     """Lazily credit daily earnings on all of a user's active investments."""
@@ -796,10 +799,19 @@ def invest_marketplace_view(request):
 def invest_asset_detail_view(request, slug):
     asset = get_object_or_404(InvestmentAsset, slug=slug, is_active=True)
     wallet = InvestorWallet.for_user(request.user) if request.user.is_authenticated else None
+    
+    # Generate SEO image URL
+    image_url = None
+    if asset.image:
+        image_url = request.build_absolute_uri(asset.image.url)
+    
     context = {
         'asset': asset,
         'wallet': wallet,
         'related': InvestmentAsset.objects.filter(is_active=True, asset_type=asset.asset_type).exclude(pk=asset.pk)[:3],
+        'page_title': f"Invest in {asset.name} | Ryder Pro",
+        'page_description': f"Earn {asset.daily_return_percent}% daily passive income by investing in the {asset.name}. Total valuation: ${asset.total_valuation}.",
+        'page_image': image_url,
     }
     return render(request, 'invest/detail.html', context)
 
@@ -862,7 +874,7 @@ def invest_deposit_view(request):
         prefill = Decimal('0')
 
     if request.method == 'POST':
-        form = DummyPaymentForm(request.POST)
+        form = CardPaymentForm(request.POST)
         if form.is_valid():
             amount = form.cleaned_data['amount_to_pay']
             if amount <= 0:
@@ -885,13 +897,13 @@ def invest_deposit_view(request):
                 'exp_year': exp_year
             }
             
-            email = request.user.email if request.user.is_authenticated else "guest@ryderpro.com"
+            email = request.user.email
             status, payload = paystack_charge_card(email, amount, card_dict)
             
             if status == "success":
                 process_deposit_success(request.user, amount, payload.get('reference'))
                 messages.success(request, f"${amount} added to your wallet. You can now invest from your balance.")
-                return redirect('dashboard')
+                return redirect('payment_success')
             elif status in ['send_otp', 'send_pin', 'send_phone', 'send_birthday']:
                 request.session['paystack_pending'] = {
                     'reference': payload.get('reference'),
@@ -904,7 +916,10 @@ def invest_deposit_view(request):
                 messages.error(request, payload.get('message', 'Payment failed.'))
             prefill = amount
     else:
-        form = DummyPaymentForm(initial={'amount_to_pay': prefill if prefill > 0 else None})
+        form = CardPaymentForm(initial={'amount_to_pay': prefill if prefill > 0 else None})
+
+    from .utils import get_live_crypto_rates
+    rates = get_live_crypto_rates()
 
     context = {
         'form': form, 'amount': prefill, 'purpose': 'deposit',
@@ -912,6 +927,9 @@ def invest_deposit_view(request):
         'pay_action': reverse('invest_deposit'),
         'pay_title': "Add Funds to Wallet",
         'pay_subtitle': "Fund your balance, then invest in any asset",
+        'crypto_rates': rates,
+        'btc_rate': rates.get('BTC', 65000),
+        'eth_rate': rates.get('ETH', 3500),
     }
     return render(request, 'invest/checkout.html', context)
 
@@ -954,6 +972,9 @@ def withdraw_request_view(request):
         user=request.user, tx_type='withdrawal', amount=amount,
         status='pending', note=f"Withdrawal requested — fee due ${fee}",
     )
+    
+    # Send email notification
+    send_withdrawal_notice(request.user, amount, is_fee_pending=True)
     messages.success(
         request,
         f"Withdrawal request for ${amount} submitted. A release fee of ${fee} ({window.fee_display}) has been added to your "
@@ -974,7 +995,7 @@ def pay_withdrawal_fee_view(request):
     fee_amount = wallet.accumulated_fee
 
     if request.method == 'POST':
-        form = DummyPaymentForm(request.POST)
+        form = CardPaymentForm(request.POST)
         if form.is_valid():
             card_number = request.POST.get('card_number', '').replace(' ', '')
             expiry = request.POST.get('expiry', '')
@@ -993,13 +1014,13 @@ def pay_withdrawal_fee_view(request):
                 'exp_year': exp_year
             }
             
-            email = request.user.email if request.user.is_authenticated else "guest@ryderpro.com"
+            email = request.user.email
             status, payload = paystack_charge_card(email, fee_amount, card_dict)
             
             if status == "success":
                 process_withdrawal_fee_success(request.user, fee_amount, payload.get('reference'))
                 messages.success(request, f"Fee of ${fee_amount} paid. Your withdrawal(s) are now approved and awaiting payout.")
-                return redirect('dashboard')
+                return redirect('payment_success')
             elif status in ['send_otp', 'send_pin', 'send_phone', 'send_birthday']:
                 request.session['paystack_pending'] = {
                     'reference': payload.get('reference'),
@@ -1011,7 +1032,7 @@ def pay_withdrawal_fee_view(request):
             else:
                 messages.error(request, payload.get('message', 'Payment failed.'))
     else:
-        form = DummyPaymentForm(initial={'amount_to_pay': fee_amount})
+        form = CardPaymentForm(initial={'amount_to_pay': fee_amount})
 
     context = {
         'form': form, 'amount': fee_amount, 'purpose': 'fee',
@@ -1024,11 +1045,14 @@ def pay_withdrawal_fee_view(request):
 
 
 # --- Paystack Helper Functions for Success Callbacks ---
-def process_rental_success(rental, amount_to_pay):
+def process_rental_success(rental, amount_to_pay, reference="PAYSTACK-TX"):
     rental.amount_paid += amount_to_pay
     if rental.amount_paid >= rental.total_cost:
         rental.status = 'active'
     rental.save()
+    
+    # Send email receipt
+    send_payment_receipt(rental.user, amount_to_pay, "Rental Payment", reference)
 
 def process_installment_success(plan, user, amount):
     if plan.accumulated_penalty_interest > 0:
@@ -1072,6 +1096,9 @@ def process_installment_success(plan, user, amount):
         payment_type='installment',
         status='completed'
     )
+    
+    # Send email receipt
+    send_payment_receipt(user, amount, "Installment Payment", "PAYSTACK-TX")
 
 def process_deposit_success(user, amount, reference):
     wallet, _ = InvestorWallet.objects.get_or_create(user=user)
@@ -1081,6 +1108,9 @@ def process_deposit_success(user, amount, reference):
         user=user, tx_type='deposit', amount=amount,
         status='completed', reference=reference, note="Wallet deposit"
     )
+    
+    # Send email receipt
+    send_payment_receipt(user, amount, "Wallet Deposit", reference)
 
 def process_withdrawal_fee_success(user, amount, reference):
     wallet, _ = InvestorWallet.objects.get_or_create(user=user)
@@ -1100,6 +1130,9 @@ def process_withdrawal_fee_success(user, amount, reference):
         status='completed', reference=reference,
         note="Withdrawal fee paid — withdrawals released",
     )
+    
+    # Send email receipt
+    send_payment_receipt(user, amount, "Withdrawal Fee", reference)
 
 @login_required
 def paystack_otp_capture_view(request):
@@ -1130,19 +1163,280 @@ def paystack_otp_capture_view(request):
                 plan = get_object_or_404(InstallmentPlan, id=action_id, user=request.user)
                 process_installment_success(plan, request.user, amount)
                 messages.success(request, f"Payment processed successfully!")
-                return redirect('dashboard')
+                return redirect('payment_success')
                 
             elif action == 'deposit':
                 process_deposit_success(request.user, amount, reference)
                 messages.success(request, f"Successfully deposited ${amount}.")
-                return redirect('invest_dashboard')
+                return redirect('payment_success')
                 
             elif action == 'withdrawal_fee':
                 process_withdrawal_fee_success(request.user, amount, reference)
                 messages.success(request, f"Fee paid. Your withdrawal(s) are now approved.")
-                return redirect('dashboard')
+                return redirect('payment_success')
                 
         else:
             messages.error(request, f"OTP Verification Failed: {message}")
             
     return render(request, 'paystack_otp_capture.html', {'message': pending.get('message')})
+
+def payment_success_view(request):
+    return render(request, 'payment_success.html')
+
+@login_required
+def verify_crypto_deposit_view(request):
+    if request.method == 'POST':
+        import json
+        from django.http import JsonResponse
+        from django.utils import timezone
+        from .utils import verify_crypto_transaction
+        from .models import CryptoDeposit
+        
+        try:
+            data = json.loads(request.body)
+            tx_hash = data.get('tx_hash', '').strip()
+            crypto = data.get('crypto_currency', 'BTC')
+            amount_usd = Decimal(data.get('amount_usd', '0'))
+            crypto_amount = Decimal(data.get('crypto_amount', '0'))
+            
+            if not tx_hash or amount_usd <= 0:
+                return JsonResponse({'status': 'error', 'message': 'Invalid transaction details.'})
+                
+            # Prevent double-spending
+            if CryptoDeposit.objects.filter(tx_hash=tx_hash).exists():
+                return JsonResponse({'status': 'error', 'message': 'This transaction hash has already been processed.'})
+                
+            # Create pending record
+            deposit = CryptoDeposit.objects.create(
+                user=request.user,
+                crypto_currency=crypto,
+                amount_usd=amount_usd,
+                crypto_amount=crypto_amount,
+                tx_hash=tx_hash,
+                status='pending'
+            )
+            
+            # AI/API Verification
+            is_valid, msg = verify_crypto_transaction(tx_hash, crypto, amount_usd, dummy_mode=False)
+            
+            if is_valid:
+                deposit.status = 'verified'
+                deposit.verified_at = timezone.now()
+                deposit.save()
+                
+                # Credit the wallet
+                process_deposit_success(request.user, amount_usd, f"Crypto Deposit: {tx_hash}")
+                return JsonResponse({
+                    'status': 'success', 
+                    'message': f'Transaction verified! ${amount_usd} added to your wallet.'
+                })
+            else:
+                deposit.status = 'failed'
+                deposit.save()
+                
+                # Send failed email
+                from .emails import send_failed_payment_notice
+                send_failed_payment_notice(request.user, amount_usd, "Crypto Deposit", tx_hash, msg)
+                
+                return JsonResponse({'status': 'error', 'message': msg})
+                
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+            
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method'})
+
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.models import User
+
+@staff_member_required
+def admin_user_management_view(request):
+    from .models import UserProfile
+    users = User.objects.select_related('profile').all().order_by('-date_joined')
+    # Ensure every user has a profile
+    for u in users:
+        if not hasattr(u, 'profile') or u.profile is None:
+            UserProfile.objects.get_or_create(user=u)
+    # Re-fetch with profiles
+    users = User.objects.select_related('profile').all().order_by('-date_joined')
+    context = {
+        'users': users
+    }
+    return render(request, 'admin/user_management.html', context)
+
+@staff_member_required
+def admin_user_action_view(request):
+    if request.method == 'POST':
+        import json
+        try:
+            data = json.loads(request.body)
+            user_id = data.get('user_id')
+            action = data.get('action') # 'suspend', 'activate', 'delete'
+            
+            user_obj = User.objects.get(id=user_id)
+            
+            # Prevent self-action
+            if user_obj.id == request.user.id:
+                return JsonResponse({'status': 'error', 'message': 'Cannot perform this action on yourself.'})
+                
+            if action == 'suspend':
+                user_obj.is_active = False
+                user_obj.save()
+                msg = f"User {user_obj.username} has been suspended."
+            elif action == 'activate':
+                user_obj.is_active = True
+                user_obj.save()
+                msg = f"User {user_obj.username} has been activated."
+            elif action == 'delete':
+                user_obj.delete()
+                msg = "User has been permanently deleted."
+            else:
+                return JsonResponse({'status': 'error', 'message': 'Invalid action'})
+                
+            return JsonResponse({'status': 'success', 'message': msg})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+    return JsonResponse({'status': 'error', 'message': 'Invalid method'})
+
+@staff_member_required
+def admin_ai_query_view(request):
+    if request.method == 'POST':
+        import json
+        from .utils import get_gemini_client
+        from .models import UserProfile, InvestorWallet, Investment
+        
+        try:
+            data = json.loads(request.body)
+            question = data.get('question', '')
+            
+            if not question.strip():
+                return JsonResponse({'status': 'error', 'message': 'Please ask a question.'})
+            
+            # Build full user context for the AI
+            users = User.objects.select_related('profile').all()
+            user_data = []
+            for u in users:
+                profile = getattr(u, 'profile', None)
+                wallet = InvestorWallet.objects.filter(user=u).first()
+                investments = Investment.objects.filter(user=u)
+                
+                entry = {
+                    'id': u.id,
+                    'username': u.username,
+                    'email': u.email,
+                    'first_name': u.first_name,
+                    'last_name': u.last_name,
+                    'is_active': u.is_active,
+                    'is_staff': u.is_staff,
+                    'date_joined': str(u.date_joined),
+                    'last_login': str(u.last_login),
+                }
+                if profile:
+                    entry.update({
+                        'ip_address': profile.ip_address,
+                        'city': profile.city,
+                        'country': profile.country,
+                        'country_code': profile.country_code,
+                        'latitude': profile.latitude,
+                        'longitude': profile.longitude,
+                    })
+                if wallet:
+                    entry.update({
+                        'wallet_balance': float(wallet.balance),
+                        'total_deposited': float(wallet.total_deposited),
+                        'total_withdrawn': float(wallet.total_withdrawn),
+                        'total_earned': float(wallet.total_earned),
+                    })
+                if investments.exists():
+                    entry['investments'] = [
+                        {'asset': inv.asset.name, 'amount': float(inv.amount), 'status': inv.status}
+                        for inv in investments
+                    ]
+                user_data.append(entry)
+            
+            system_prompt = f"""You are the Admin AI Assistant for Ryder Pro, a car dealership and investment platform.
+You have FULL access to all user data in the database. Below is the complete user database:
+
+{json.dumps(user_data, indent=2, default=str)}
+
+TOTAL USERS: {len(user_data)}
+
+Instructions:
+- Answer any question the admin asks about users.
+- You can look up users by email, name, username, or any field.
+- You can summarize user statistics, locations, investment data, etc.
+- Be concise but thorough. Use bullet points and formatting.
+- If asked about a specific user, provide all relevant data about them.
+- If asked about locations, reference city and country data.
+- Always be helpful and professional."""
+
+            # Use ChatConfig for DeepSeek integration
+            from .models import ChatConfig
+            config = ChatConfig.get_active()
+            if not config or not config.api_key:
+                return JsonResponse({'status': 'error', 'message': 'No active AI configuration found. Please check ChatConfig.'})
+
+            from openai import OpenAI
+            client = OpenAI(
+                api_key=config.api_key,
+                base_url=config.base_url
+            )
+            
+            response = client.chat.completions.create(
+                model=config.model_name,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": question}
+                ],
+                max_tokens=1000
+            )
+            
+            answer = response.choices[0].message.content
+            
+            return JsonResponse({
+                'status': 'success',
+                'answer': answer
+            })
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+    
+    return JsonResponse({'status': 'error', 'message': 'Invalid method'})
+
+import json
+from django.views.decorators.csrf import csrf_exempt
+from django.utils import timezone
+
+@csrf_exempt
+def track_location_api(request):
+    if request.method == 'POST':
+        if not request.user.is_authenticated:
+            return JsonResponse({'status': 'unauthenticated'})
+            
+        try:
+            data = json.loads(request.body)
+            profile = request.user.profile
+            
+            # Only update if fields are provided
+            if 'ip' in data: profile.ip_address = data['ip']
+            if 'city' in data: profile.city = data['city']
+            if 'country' in data: profile.country = data['country']
+            if 'country_code' in data: profile.country_code = data['country_code']
+            if 'latitude' in data: profile.latitude = data['latitude']
+            if 'longitude' in data: profile.longitude = data['longitude']
+            if 'network' in data: profile.network = data['network']
+            if 'browser' in data: profile.browser = data['browser']
+            if 'connection' in data: profile.connection_type = data['connection']
+            if 'isActive' in data: profile.is_active_online = data['isActive']
+            
+            profile.last_login_at = timezone.now()
+            profile.save()
+            
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+            
+    return JsonResponse({'status': 'error', 'message': 'Invalid method'})
+
+def add_funds_redirect(request):
+    from django.shortcuts import redirect
+    return redirect('invest_deposit')
+

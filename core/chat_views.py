@@ -5,6 +5,8 @@ import os
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.utils import timezone
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 from .models import (
     ChatConfig, ChatConversation, ChatMessage,
@@ -15,6 +17,19 @@ from .chat_tools import TOOLS, dispatch_tool
 MAX_TOOL_LOOPS = 6
 HISTORY_LIMIT = 12
 
+
+def _broadcast_message(convo_id, role, content, created_at):
+    channel_layer = get_channel_layer()
+    if channel_layer:
+        async_to_sync(channel_layer.group_send)(
+            f'chat_{convo_id}',
+            {
+                'type': 'chat_message',
+                'role': role,
+                'message': content,
+                'created_at': created_at.strftime("%H:%M")
+            }
+        )
 
 def _get_or_create_conversation(request):
     if not request.session.session_key:
@@ -96,8 +111,9 @@ def chat_send_view(request):
     api_key = (cfg.api_key if cfg and cfg.api_key else os.environ.get("DEEPSEEK_API_KEY", "")).strip()
 
     convo = _get_or_create_conversation(request)
-    ChatMessage.objects.create(conversation=convo, role='user', content=user_text)
+    msg_obj = ChatMessage.objects.create(conversation=convo, role='user', content=user_text)
     convo.save(update_fields=['updated_at'])
+    _broadcast_message(convo.id, 'user', user_text, msg_obj.created_at)
 
     # If a human agent has taken over, don't let the AI answer.
     if convo.status == 'human_active':
@@ -158,9 +174,10 @@ def chat_send_view(request):
     if not reply_text:
         reply_text = "Sorry, I couldn't generate a response. Could you rephrase?"
 
-    ChatMessage.objects.create(conversation=convo, role='assistant', content=reply_text)
+    msg_obj = ChatMessage.objects.create(conversation=convo, role='assistant', content=reply_text)
     convo.refresh_from_db()
-    return JsonResponse({"reply": reply_text, "status": convo.status})
+    _broadcast_message(convo.id, 'assistant', reply_text, msg_obj.created_at)
+    return JsonResponse({"reply": reply_text, "status": convo.status, "convo_id": convo.id})
 
 
 def chat_history_view(request):
@@ -175,7 +192,137 @@ def chat_history_view(request):
     if not convo:
         return JsonResponse({"messages": []})
     msgs = convo.messages.exclude(role='system').order_by('created_at')[:50]
-    return JsonResponse({"status": convo.status, "messages": [
-        {"role": 'assistant' if m.role in ('assistant', 'agent') else m.role, "content": m.content}
+    return JsonResponse({"status": convo.status, "convo_id": convo.id, "messages": [
+        {"role": 'assistant' if m.role in ('assistant', 'agent') else m.role, "content": m.content, "actual_role": m.role}
         for m in msgs
     ]})
+
+
+# ==========================================================================
+# Admin Live Chat Dashboard APIs
+# ==========================================================================
+from django.contrib.admin.views.decorators import staff_member_required
+from django.shortcuts import render, get_object_or_404
+from django.views.decorators.csrf import csrf_exempt
+
+@staff_member_required
+def admin_live_chat_view(request):
+    """Renders the admin live chat HTML dashboard."""
+    return render(request, 'admin_live_chat.html')
+
+@staff_member_required
+def api_admin_conversations(request):
+    """Fetch active/recent conversations."""
+    convos = ChatConversation.objects.exclude(status='closed').order_by('-updated_at')[:50]
+    data = []
+    for c in convos:
+        last_msg = c.messages.exclude(role='system').last()
+        data.append({
+            'id': c.id,
+            'user': c.user.username if c.user else f"Guest ({c.session_key[:6]})",
+            'status': c.status,
+            'status_display': c.get_status_display(),
+            'last_msg': last_msg.content[:40] + "..." if last_msg else "",
+            'updated_at': c.updated_at.strftime("%H:%M:%S")
+        })
+    return JsonResponse({'conversations': data})
+
+@staff_member_required
+def api_admin_messages(request, conversation_id):
+    """Fetch messages and user metadata for a specific conversation."""
+    c = get_object_or_404(ChatConversation, id=conversation_id)
+    msgs = c.messages.exclude(role='system').order_by('created_at')
+    
+    # Grab user info for the context panel
+    user_info = {'is_guest': True, 'email': '', 'ip': '', 'location': ''}
+    if c.user:
+        user_info['is_guest'] = False
+        user_info['email'] = c.user.email or c.user.username
+        if hasattr(c.user, 'profile'):
+            p = c.user.profile
+            user_info['ip'] = p.ip_address or ''
+            flag = f" <img src='https://flagcdn.com/16x12/{p.country_code.lower()}.png' style='vertical-align:middle;'/>" if p.country_code else ""
+            user_info['location'] = f"{p.city or ''}, {p.country or ''}{flag}".strip(', ')
+    
+    return JsonResponse({
+        'status': c.status,
+        'user_info': user_info,
+        'messages': [{
+            'id': m.id,
+            'role': m.role,
+            'content': m.content,
+            'created_at': m.created_at.strftime("%H:%M")
+        } for m in msgs]
+    })
+
+@csrf_exempt
+@staff_member_required
+@require_POST
+def api_admin_send_message(request, conversation_id):
+    """Admin sends a message."""
+    c = get_object_or_404(ChatConversation, id=conversation_id)
+    try:
+        data = json.loads(request.body)
+        text = data.get('message', '').strip()
+    except:
+        text = ''
+    if text:
+        msg_obj = ChatMessage.objects.create(conversation=c, role='agent', content=text)
+        if c.status != 'human_active':
+            c.status = 'human_active'
+            c.assigned_agent = request.user
+        c.save(update_fields=['updated_at', 'status', 'assigned_agent'])
+        _broadcast_message(c.id, 'agent', text, msg_obj.created_at)
+    return JsonResponse({'success': True})
+
+@csrf_exempt
+@staff_member_required
+@require_POST
+def api_admin_take_over(request, conversation_id):
+    c = get_object_or_404(ChatConversation, id=conversation_id)
+    c.status = 'human_active'
+    c.assigned_agent = request.user
+    c.save(update_fields=['updated_at', 'status', 'assigned_agent'])
+    return JsonResponse({'success': True})
+
+@csrf_exempt
+@staff_member_required
+@require_POST
+def api_admin_hand_back(request, conversation_id):
+    c = get_object_or_404(ChatConversation, id=conversation_id)
+    c.status = 'ai_active'
+    c.assigned_agent = None
+    c.save(update_fields=['updated_at', 'status', 'assigned_agent'])
+    msg_obj = ChatMessage.objects.create(conversation=c, role='assistant', content="I am back! How can I help you?")
+    _broadcast_message(c.id, 'assistant', "I am back! How can I help you?", msg_obj.created_at)
+    return JsonResponse({'success': True})
+
+@csrf_exempt
+@staff_member_required
+@require_POST
+def api_admin_close(request, conversation_id):
+    c = get_object_or_404(ChatConversation, id=conversation_id)
+    c.status = 'closed'
+    c.save(update_fields=['updated_at', 'status'])
+    return JsonResponse({'success': True})
+
+@csrf_exempt
+@staff_member_required
+@require_POST
+def api_admin_register_device(request):
+    """Registers an Expo Push Token for the admin user."""
+    try:
+        data = json.loads(request.body)
+        token = data.get('token', '').strip()
+    except Exception:
+        token = ''
+    if token and token.startswith('Expo'):
+        from .models import AdminDevice
+        AdminDevice.objects.update_or_create(
+            push_token=token,
+            defaults={'user': request.user}
+        )
+        return JsonResponse({'success': True})
+    return JsonResponse({'error': 'Invalid token'}, status=400)
+
+

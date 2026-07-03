@@ -1,0 +1,20 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+    <h1>Application Received</h1>
+    
+    <p>Hi {{ name }},</p>
+    
+    <p>We've successfully received your <strong>{{ application_type }}</strong> application. Our team is currently reviewing your details.</p>
+    
+    <div class="receipt-box" style="margin-top: 20px;">
+        <p style="margin: 0; font-size: 14px;"><strong>Application Details:</strong><br>
+        {{ details }}</p>
+    </div>
+    
+    <p>We typically review applications within 24-48 business hours. You will receive another notification once your application has been processed or if we require any additional information.</p>
+    
+    <div style="text-align: center; margin-top: 30px;">
+        <a href="https://www.ryder-pro.com/dashboard/" class="btn">View Status</a>
+    </div>
+{% endblock %}

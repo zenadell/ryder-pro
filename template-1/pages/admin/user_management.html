@@ -1,0 +1,431 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Admin User Management | Ryder Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS for Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #f8f9fa; margin: 0; padding: 0; }
+        .admin-dashboard {
+        padding: 40px 0;
+        min-height: 80vh;
+        background: #f8f9fa;
+    }
+    
+    .admin-header {
+        margin-bottom: 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .map-container {
+        width: 100%;
+        height: 400px;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        margin-bottom: 40px;
+        overflow: hidden;
+    }
+    
+    .table-container {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        padding: 20px;
+        overflow-x: auto;
+    }
+    
+    .users-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .users-table th, .users-table td {
+        padding: 15px;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .users-table th {
+        font-weight: 600;
+        color: #555;
+        background: #f8f9fa;
+    }
+    
+    .status-badge {
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    .status-active { background: #d4edda; color: #155724; }
+    .status-suspended { background: #f8d7da; color: #721c24; }
+    
+    .action-btn {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        margin-right: 5px;
+        transition: 0.2s;
+    }
+    .btn-suspend { background: #fff3cd; color: #856404; }
+    .btn-suspend:hover { background: #ffe8a1; }
+    .btn-activate { background: #d4edda; color: #155724; }
+    .btn-activate:hover { background: #c3e6cb; }
+    .btn-delete { background: #f8d7da; color: #721c24; }
+    .btn-delete:hover { background: #f5c6cb; }
+    
+    /* AI Chat Widget */
+    .ai-chat-toggle {
+        position: fixed;
+        bottom: 25px;
+        right: 25px;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        border: none;
+        color: #fff;
+        font-size: 26px;
+        cursor: pointer;
+        box-shadow: 0 4px 20px rgba(102,126,234,0.4);
+        z-index: 1000;
+        transition: transform 0.2s;
+    }
+    .ai-chat-toggle:hover { transform: scale(1.1); }
+    
+    .ai-chat-panel {
+        position: fixed;
+        bottom: 100px;
+        right: 25px;
+        width: 400px;
+        max-height: 500px;
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+        z-index: 1000;
+        display: none;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    .ai-chat-panel.open { display: flex; }
+    
+    .ai-chat-header {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: #fff;
+        padding: 16px 20px;
+        font-weight: 700;
+        font-size: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .ai-chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+        max-height: 320px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .ai-msg { padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.5; max-width: 90%; }
+    .ai-msg.user { background: #f0f0f0; align-self: flex-end; border-bottom-right-radius: 4px; }
+    .ai-msg.bot { background: #eef2ff; align-self: flex-start; border-bottom-left-radius: 4px; }
+    .ai-msg.bot p { margin: 4px 0; }
+    .ai-msg.bot ul, .ai-msg.bot ol { margin: 4px 0; padding-left: 18px; }
+    .ai-msg.bot strong { color: #333; }
+    
+    .ai-chat-input {
+        display: flex;
+        border-top: 1px solid #eee;
+        padding: 12px;
+        gap: 8px;
+    }
+    .ai-chat-input input {
+        flex: 1;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 14px;
+        outline: none;
+    }
+    .ai-chat-input input:focus { border-color: #667eea; }
+    .ai-chat-input button {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 18px;
+        cursor: pointer;
+        font-weight: 600;
+    }
+</style>
+</head>
+<body>
+    <div style="background: #111; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center;">
+        <h1 style="margin: 0; font-size: 20px;">Ryder Pro Admin</h1>
+        <a href="/admin/" style="color: #667eea; text-decoration: none; font-weight: 600;">Go to standard Django Admin</a>
+    </div>
+
+<section class="admin-dashboard">
+    <div class="container">
+        <div class="admin-header">
+            <h2>User Management Dashboard</h2>
+            <p>Total Users: {{ users.count }}</p>
+        </div>
+        
+        <!-- Global Map -->
+        <div class="map-container" id="userMap"></div>
+        
+        <!-- Users Table -->
+        <div class="table-container">
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Email</th>
+                        <th>Joined</th>
+                        <th>Location</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr id="row-user-{{ u.id }}">
+                        <td>
+                            <strong>{{ u.first_name }} {{ u.last_name }}</strong><br>
+                            <small class="text-muted">{{ u.username }}</small>
+                        </td>
+                        <td>{{ u.email }}</td>
+                        <td>{{ u.date_joined|date:"M d, Y" }}</td>
+                        <td>
+                            {% with profile=u.profile %}
+                            {% if profile.country %}
+                                {% if profile.country_code %}<img src="https://flagcdn.com/20x15/{{ profile.country_code }}.png" style="vertical-align:middle;margin-right:5px;">{% endif %}
+                                {{ profile.city|default:"Unknown" }}, {{ profile.country }}<br>
+                                <small class="text-muted">IP: {{ profile.ip_address|default:"N/A" }}</small>
+                            {% elif profile.ip_address %}
+                                IP: {{ profile.ip_address }} (Location pending)
+                            {% else %}
+                                <em>No Location Data</em>
+                            {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td>
+                            <span class="status-badge {% if u.is_active %}status-active{% else %}status-suspended{% endif %}" id="status-{{ u.id }}">
+                                {% if u.is_active %}Active{% else %}Suspended{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            {% if u.id != request.user.id %}
+                                {% if u.is_active %}
+                                    <button class="action-btn btn-suspend" onclick="userAction({{ u.id }}, 'suspend')">Suspend</button>
+                                {% else %}
+                                    <button class="action-btn btn-activate" onclick="userAction({{ u.id }}, 'activate')">Activate</button>
+                                {% endif %}
+                                <button class="action-btn btn-delete" onclick="if(confirm('Are you sure you want to permanently delete this user?')) userAction({{ u.id }}, 'delete')">Delete</button>
+                            {% else %}
+                                <em>(You)</em>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6">No users found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- Leaflet JS for Map -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<!-- AI Chat Widget -->
+<button class="ai-chat-toggle" id="aiChatToggle" title="AI Assistant">🤖</button>
+<div class="ai-chat-panel" id="aiChatPanel">
+    <div class="ai-chat-header">
+        <span>🤖</span> Admin AI Assistant
+    </div>
+    <div class="ai-chat-messages" id="aiChatMessages">
+        <div class="ai-msg bot">Hi! I'm your Admin AI Assistant. I have full access to all user data. Ask me anything — e.g. "Where is ryderpro2026@gmail.com from?" or "How many active users do we have?"</div>
+    </div>
+    <div class="ai-chat-input">
+        <input type="text" id="aiChatInput" placeholder="Ask about your users...">
+        <button id="aiChatSend">Send</button>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize map
+        var map = L.map('userMap', {
+            center: [20, 0],
+            zoom: 2,
+            minZoom: 2,
+            maxBounds: [[-90, -180], [90, 180]],
+            maxBoundsViscosity: 1.0
+        });
+        
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap &copy; CARTO',
+            subdomains: 'abcd',
+            maxZoom: 19,
+            noWrap: true
+        }).addTo(map);
+        
+        // Add User Markers
+        var userLocations = [
+            {% for u in users %}
+                {% if u.profile and u.profile.latitude and u.profile.longitude %}
+                {
+                    lat: {{ u.profile.latitude|stringformat:"f" }},
+                    lng: {{ u.profile.longitude|stringformat:"f" }},
+                    name: "{{ u.username|escapejs }}",
+                    city: "{{ u.profile.city|escapejs }}",
+                    status: "{{ u.is_active|yesno:'Active,Suspended' }}"
+                },
+                {% endif %}
+            {% endfor %}
+        ];
+        
+        userLocations.forEach(function(loc) {
+            var markerColor = loc.status === 'Active' ? 'blue' : 'red';
+            var markerHtmlStyles = `
+              background-color: ${markerColor};
+              width: 1rem;
+              height: 1rem;
+              display: block;
+              left: -0.5rem;
+              top: -0.5rem;
+              position: relative;
+              border-radius: 1rem;
+              border: 1px solid #FFFFFF;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+            `;
+            var customIcon = L.divIcon({
+              className: "custom-pin",
+              iconAnchor: [0, 0],
+              labelAnchor: [-6, 0],
+              popupAnchor: [0, -10],
+              html: `<span style="${markerHtmlStyles}"></span>`
+            });
+            
+            L.marker([loc.lat, loc.lng], {icon: customIcon})
+                .bindPopup(`<b>${loc.name}</b><br>${loc.city}<br>Status: ${loc.status}`)
+                .addTo(map);
+        });
+    });
+
+    // Handle AJAX Actions
+    function userAction(userId, action) {
+        fetch('{% url "admin_user_action" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                action: action
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert(data.message);
+                if (action === 'delete') {
+                    document.getElementById('row-user-' + userId).remove();
+                } else {
+                    window.location.reload(); // Quickest way to update UI status & buttons
+                }
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+        });
+    }
+    // ---- AI Chat Widget ----
+    const chatToggle = document.getElementById('aiChatToggle');
+    const chatPanel = document.getElementById('aiChatPanel');
+    const chatInput = document.getElementById('aiChatInput');
+    const chatMessages = document.getElementById('aiChatMessages');
+    const chatSend = document.getElementById('aiChatSend');
+    
+    chatToggle.addEventListener('click', () => chatPanel.classList.toggle('open'));
+    
+    function addMessage(text, type) {
+        const div = document.createElement('div');
+        div.className = 'ai-msg ' + type;
+        if (type === 'bot') {
+            // Simple markdown-like formatting
+            let html = text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/^- (.+)$/gm, '<li>$1</li>')
+                .replace(/^\* (.+)$/gm, '<li>$1</li>')
+                .replace(/\n/g, '<br>');
+            if (html.includes('<li>')) html = '<ul>' + html + '</ul>';
+            div.innerHTML = html;
+        } else {
+            div.textContent = text;
+        }
+        chatMessages.appendChild(div);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+    
+    function sendAiQuery() {
+        const q = chatInput.value.trim();
+        if (!q) return;
+        addMessage(q, 'user');
+        chatInput.value = '';
+        chatSend.disabled = true;
+        chatSend.textContent = '...';
+        
+        fetch('{% url "admin_ai_query" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ question: q })
+        })
+        .then(r => r.json())
+        .then(data => {
+            chatSend.disabled = false;
+            chatSend.textContent = 'Send';
+            if (data.status === 'success') {
+                addMessage(data.answer, 'bot');
+            } else {
+                addMessage('Error: ' + data.message, 'bot');
+            }
+        })
+        .catch(() => {
+            chatSend.disabled = false;
+            chatSend.textContent = 'Send';
+            addMessage('Network error. Please try again.', 'bot');
+        });
+    }
+    
+    chatSend.addEventListener('click', sendAiQuery);
+    chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendAiQuery(); });
+</script>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,34 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+    <h1>Payment Successful</h1>
+    
+    <p>Hi {{ name }},</p>
+    
+    <p>We've successfully received your payment. Thank you for your transaction!</p>
+    
+    <div class="receipt-box">
+        <div class="receipt-row">
+            <span>Payment For:</span>
+            <span class="text-right">{{ purpose }}</span>
+        </div>
+        <div class="receipt-row">
+            <span>Reference:</span>
+            <span class="text-right">{{ reference }}</span>
+        </div>
+        <div class="receipt-row">
+            <span>Date:</span>
+            <span class="text-right">{% now "F j, Y, P" %}</span>
+        </div>
+        <div class="receipt-row">
+            <span>Total Amount:</span>
+            <span class="text-right">${{ amount }}</span>
+        </div>
+    </div>
+    
+    <p>You can view your updated balance and transaction history in your dashboard at any time.</p>
+    
+    <div style="text-align: center; margin-top: 30px;">
+        <a href="https://www.ryder-pro.com/dashboard/" class="btn">View Dashboard</a>
+    </div>
+{% endblock %}

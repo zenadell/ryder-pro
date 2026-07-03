@@ -69,7 +69,7 @@ class RentalRequestForm(forms.ModelForm):
             'special_requests': forms.Textarea(attrs={'class': 'form-input form-textarea w-input', 'placeholder': 'Any special requirements or pickup instructions?'}),
         }
 
-class DummyPaymentForm(forms.Form):
+class CardPaymentForm(forms.Form):
     card_name = forms.CharField(max_length=100, widget=forms.TextInput(attrs={'class': 'form-input w-input', 'placeholder': 'Name on Card'}))
     card_number = forms.CharField(max_length=19, widget=forms.TextInput(attrs={'class': 'form-input w-input', 'placeholder': 'XXXX XXXX XXXX XXXX'}))
     expiry = forms.CharField(max_length=5, widget=forms.TextInput(attrs={'class': 'form-input w-input', 'placeholder': 'MM/YY'}))

@@ -1,0 +1,38 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+    <h1>Payment Verification Failed</h1>
+    
+    <p>Hi {{ name }},</p>
+    
+    <p>Unfortunately, we could not verify your recent payment. This can happen if the transaction hash was invalid or if the blockchain hasn't processed it yet.</p>
+    
+    <div class="receipt-box" style="border-color: #ffcccc; background-color: #fff5f5;">
+        <div class="receipt-row">
+            <span>Attempted Payment For:</span>
+            <span class="text-right">{{ purpose }}</span>
+        </div>
+        <div class="receipt-row">
+            <span>Reference (TxID):</span>
+            <span class="text-right" style="word-break: break-all;">{{ reference }}</span>
+        </div>
+        <div class="receipt-row">
+            <span>Date:</span>
+            <span class="text-right">{% now "F j, Y, P" %}</span>
+        </div>
+        <div class="receipt-row">
+            <span>Amount:</span>
+            <span class="text-right">${{ amount }}</span>
+        </div>
+        <div class="receipt-row" style="color: #cc0000; padding-top: 10px; border-top: 1px solid #ffcccc; font-weight: 600; font-size: 16px;">
+            <span>Reason:</span>
+            <span class="text-right">{{ reason }}</span>
+        </div>
+    </div>
+    
+    <p>If you believe this is an error and the funds have left your wallet, please wait a few more minutes to ensure it has confirmations on the blockchain, and then try entering the Transaction Hash again.</p>
+    
+    <div style="text-align: center; margin-top: 30px;">
+        <a href="https://www.ryder-pro.com/invest/deposit/" class="btn">Try Again</a>
+    </div>
+{% endblock %}

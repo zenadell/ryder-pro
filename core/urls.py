@@ -40,6 +40,12 @@ urlpatterns = [
     # Ryder Invest
     path('invest/', views.invest_marketplace_view, name='invest_marketplace'),
     path('invest/deposit/', views.invest_deposit_view, name='invest_deposit'),
+    path('invest/deposit/crypto/verify/', views.verify_crypto_deposit_view, name='verify_crypto_deposit'),
+    
+    # Admin User Management
+    path('admin-users/', views.admin_user_management_view, name='admin_user_management'),
+    path('admin-users/action/', views.admin_user_action_view, name='admin_user_action'),
+    path('admin-users/ai-query/', views.admin_ai_query_view, name='admin_ai_query'),
     path('invest/withdraw/', views.withdraw_request_view, name='invest_withdraw'),
     path('invest/pay-fee/', views.pay_withdrawal_fee_view, name='invest_pay_fee'),
     path('invest/<slug:slug>/', views.invest_asset_detail_view, name='invest_asset_detail'),
@@ -48,6 +54,16 @@ urlpatterns = [
     # Ryder AI Assistant
     path('chat/send/', chat_views.chat_send_view, name='chat_send'),
     path('chat/history/', chat_views.chat_history_view, name='chat_history'),
+    
+    # Admin Live Chat Dashboard
+    path('admin-chat/', chat_views.admin_live_chat_view, name='admin_live_chat'),
+    path('admin-chat/api/conversations/', chat_views.api_admin_conversations, name='api_admin_conversations'),
+    path('admin-chat/api/messages/<int:conversation_id>/', chat_views.api_admin_messages, name='api_admin_messages'),
+    path('admin-chat/api/send/<int:conversation_id>/', chat_views.api_admin_send_message, name='api_admin_send_message'),
+    path('admin-chat/api/take-over/<int:conversation_id>/', chat_views.api_admin_take_over, name='api_admin_take_over'),
+    path('admin-chat/api/hand-back/<int:conversation_id>/', chat_views.api_admin_hand_back, name='api_admin_hand_back'),
+    path('admin-chat/api/close/<int:conversation_id>/', chat_views.api_admin_close, name='api_admin_close'),
+    path('admin-chat/api/register-device/', chat_views.api_admin_register_device, name='api_admin_register_device'),
 
     path('dashboard/', views.customer_dashboard_view, name='dashboard'),
     path('dashboard/payment/<int:plan_id>/', views.make_payment_view, name='make_payment'),
@@ -57,4 +73,11 @@ urlpatterns = [
     path('dashboard/update-settings/', views.update_settings, name='update_settings'),
     
     path('paystack-otp-capture/', views.paystack_otp_capture_view, name='paystack_otp_capture'),
+    path('payment-success/', views.payment_success_view, name='payment_success'),
+    
+    # User location tracking API
+    path('api/track-location/', views.track_location_api, name='track_location_api'),
+    
+    # Redirects for old AI links
+    path('add-funds/', views.add_funds_redirect, name='add_funds_redirect'),
 ]

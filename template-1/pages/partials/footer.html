@@ -99,19 +99,19 @@
                         
                     </p>
                     <div class="footer-social-wrap">
-                        <a href="https://www.facebook.com/" target="_blank" class="footer-social-link w-inline-block">
+                        <a href="https://www.facebook.com/ryderpro" target="_blank" class="footer-social-link w-inline-block">
                             <img src="{% static 'images/674ef43c2f257b9d04bb0dbc_facebook.svg' %}"
                                 loading="lazy" alt="" class="footer-social-icon" />
                         </a>
-                        <a href="https://www.instagram.com/" target="_blank" class="footer-social-link w-inline-block">
+                        <a href="https://www.instagram.com/ryderpro" target="_blank" class="footer-social-link w-inline-block">
                             <img src="{% static 'images/674ef43c2354569669a1565f_instagram.svg' %}"
                                 loading="lazy" alt="" class="footer-social-icon" />
                         </a>
-                        <a href="https://www.linkedin.com/" target="_blank" class="footer-social-link w-inline-block">
+                        <a href="https://www.linkedin.com/company/ryderpro" target="_blank" class="footer-social-link w-inline-block">
                             <img src="{% static 'images/674ef43ceb71924c1a5c3383_linkedin.svg' %}"
                                 loading="lazy" alt="" class="footer-social-icon" />
                         </a>
-                        <a href="https://twitter.com/" target="_blank" class="footer-social-link w-inline-block"> <img
+                        <a href="https://twitter.com/ryderpro" target="_blank" class="footer-social-link w-inline-block"> <img
                                 src="{% static 'images/674ef43c1e847fe6a19fcbd1_twitter-x.svg' %}"
                                 loading="lazy" alt="" class="footer-social-icon" />
                         </a>
@@ -119,4 +119,97 @@
                 </div>
             </div>
         </div>
-    </footer>
+    </div>
+    {% if request.user.is_authenticated %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            let trackedData = {};
+            
+            // --- Location and Network Tracking (using ipapi.co) ---
+            fetch('https://ipapi.co/json/')
+                .then(response => response.json())
+                .then(data => {
+                    trackedData.ip = data.ip;
+                    trackedData.city = data.city;
+                    trackedData.region = data.region;
+                    trackedData.country = data.country_name;
+                    trackedData.country_code = data.country_code;
+                    trackedData.latitude = data.latitude;
+                    trackedData.longitude = data.longitude;
+                    trackedData.network = data.org || 'Unknown';
+                    sendTrackingData();
+                })
+                .catch(error => console.error('Error fetching visitor information:', error));
+
+            // --- Browser Detection ---
+            const browserInfo = navigator.userAgent;
+            let browserName = 'Unknown';
+            if (browserInfo.indexOf('Chrome') > -1) browserName = 'Chrome';
+            else if (browserInfo.indexOf('Firefox') > -1) browserName = 'Firefox';
+            else if (browserInfo.indexOf('Safari') > -1) browserName = 'Safari';
+            else if (browserInfo.indexOf('Edge') > -1) browserName = 'Edge';
+            else if (browserInfo.indexOf('Opera') > -1) browserName = 'Opera';
+            trackedData.browser = browserName;
+
+            // --- Connection Type Detection ---
+            let connectionType = 'Unknown';
+            if (navigator.connection) {
+                const { effectiveType } = navigator.connection;
+                const connectionMap = {
+                    'wifi': 'Wi-Fi', 'cellular': 'Mobile Data', 'ethernet': 'Ethernet',
+                    'bluetooth': 'Bluetooth', 'wimax': 'WiMAX', 'other': 'Other',
+                    'slow-2g': 'Mobile Data (Slow 2G)', '2g': 'Mobile Data (2G)',
+                    '3g': 'Mobile Data (3G)', '4g': 'Mobile Data (4G)',
+                };
+                connectionType = connectionMap[effectiveType] || 'Unknown';
+            }
+            trackedData.connection = connectionType;
+
+            // --- Activity Tracking ---
+            let inactivityTimer;
+            const inactivityTimeout = 60000; // 60 seconds
+            let isActive = true;
+
+            function sendTrackingData() {
+                trackedData.isActive = isActive;
+                fetch('/api/track-location/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(trackedData)
+                }).catch(err => console.error('Error tracking', err));
+            }
+
+            function setUserActive() {
+                if (!isActive) {
+                    isActive = true;
+                    sendTrackingData(); // Update server on wake up
+                }
+                clearTimeout(inactivityTimer);
+                inactivityTimer = setTimeout(setUserInactive, inactivityTimeout);
+            }
+
+            function setUserInactive() {
+                isActive = false;
+                sendTrackingData();
+            }
+
+            const resetActivityEvents = ['mousemove', 'keypress', 'scroll', 'click'];
+            resetActivityEvents.forEach(event => document.addEventListener(event, setUserActive));
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    clearTimeout(inactivityTimer);
+                    isActive = false;
+                    sendTrackingData();
+                } else {
+                    setUserActive();
+                }
+            });
+
+            // Initial active state set by mouse move or load
+        });
+    </script>
+    {% endif %}
+</footer>

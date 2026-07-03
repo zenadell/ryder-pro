@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    {% include 'partials/seo.html' %}
     <meta charset="utf-8" />
     <title>Make Payment | Ryder Pro</title>
     <meta content="width=device-width, initial-scale=1" name="viewport" />
@@ -61,10 +62,10 @@
                             
                             <div class="card-item__wrapper">
                               <div class="card-item__top">
-                                <img src="https://raw.githubusercontent.com/muhammederdem/credit-card-form/master/src/assets/images/chip.png" class="card-item__chip">
+                                <img src="/static/images/cards/chip.png" class="card-item__chip">
                                 <div class="card-item__type">
                                   <transition name="slide-fade-up">
-                                    <img v-bind:src="'https://raw.githubusercontent.com/muhammederdem/credit-card-form/master/src/assets/images/' + getCardType + '.png'" v-if="getCardType" v-bind:key="getCardType" alt="" class="card-item__typeImg">
+                                    <img v-bind:src="'/static/images/cards/' + getCardType + '.png'" v-if="getCardType" v-bind:key="getCardType" alt="" class="card-item__typeImg">
                                   </transition>
                                 </div>
                               </div>
@@ -159,7 +160,7 @@
                 
                               </div>
                                 <div class="card-item__type">
-                                    <img v-bind:src="'https://raw.githubusercontent.com/muhammederdem/credit-card-form/master/src/assets/images/' + getCardType + '.png'" v-if="getCardType" class="card-item__typeImg">
+                                    <img v-bind:src="'/static/images/cards/' + getCardType + '.png'" v-if="getCardType" class="card-item__typeImg">
                                 </div>
                             </div>
                           </div>

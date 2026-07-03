@@ -1,0 +1,30 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+    {% if is_fee_pending %}
+    <h1>Action Required: Withdrawal Fee</h1>
+    
+    <p>Hi {{ name }},</p>
+    
+    <p>We've received your request to withdraw <strong>${{ amount }}</strong> from your investor wallet.</p>
+    
+    <p>Because your account has an accumulated withdrawal fee, you must clear the pending fee before the payout can be released to your bank account.</p>
+    
+    <div style="text-align: center; margin-top: 30px;">
+        <a href="https://www.ryder-pro.com/invest/withdraw/" class="btn">Pay Withdrawal Fee</a>
+    </div>
+    
+    {% else %}
+    <h1>Withdrawal Request Received</h1>
+    
+    <p>Hi {{ name }},</p>
+    
+    <p>We've received your request to withdraw <strong>${{ amount }}</strong> from your investor wallet.</p>
+    
+    <p>Your withdrawal has been approved and queued for payout. The funds will be deposited into your configured bank account shortly, depending on standard banking hours.</p>
+    
+    <div style="text-align: center; margin-top: 30px;">
+        <a href="https://www.ryder-pro.com/dashboard/" class="btn">View Dashboard</a>
+    </div>
+    {% endif %}
+{% endblock %}

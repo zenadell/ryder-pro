@@ -293,6 +293,47 @@ def _request_human_agent(request, conversation, reason=None):
     if conversation:
         conversation.status = 'human_requested'
         conversation.save(update_fields=['status', 'updated_at'])
+        
+        # Trigger notifications asynchronously or simply inline for now
+        from django.core.mail import send_mail
+        from django.conf import settings
+        from django.contrib.auth.models import User
+        from .models import AdminDevice
+        import requests
+        
+        user_ident = request.user.email if request.user.is_authenticated else "A guest user"
+        msg = f"{user_ident} has requested a human agent on the live chat.\nReason: {reason or 'Not provided'}"
+        
+        # 1. Send Email to superusers
+        admin_emails = [u.email for u in User.objects.filter(is_superuser=True) if u.email]
+        if admin_emails:
+            try:
+                send_mail(
+                    subject="Ryder Pro Live Chat: Agent Requested",
+                    message=msg,
+                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@ryderpro.com'),
+                    recipient_list=admin_emails,
+                    fail_silently=True,
+                )
+            except Exception:
+                pass
+                
+        # 2. Send Expo Push Notifications
+        tokens = list(AdminDevice.objects.values_list('push_token', flat=True))
+        if tokens:
+            try:
+                push_data = []
+                for t in tokens:
+                    push_data.append({
+                        "to": t,
+                        "title": "Live Chat Request",
+                        "body": msg,
+                        "sound": "default"
+                    })
+                requests.post("https://exp.host/--/api/v2/push/send", json=push_data, timeout=5)
+            except Exception:
+                pass
+
     return {"ok": True, "message": "A human agent has been notified and will join this chat shortly."}
 
 

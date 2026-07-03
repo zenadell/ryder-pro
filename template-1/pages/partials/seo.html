@@ -1,0 +1,18 @@
+<!-- Standard SEO Meta Tags -->
+<meta name="description" content="{{ page_description|default:'Ryder Pro is a premium logistics platform connecting investors with high-yield commercial vehicles, and providing world-class truck rentals and financing.' }}">
+<meta name="keywords" content="{{ page_keywords|default:'logistics, investment, trucks, fleet, commercial vehicles, freight, passive income' }}">
+<meta name="author" content="Ryder Pro Logistics">
+
+<!-- Open Graph / Facebook / LinkedIn / iMessage -->
+<meta property="og:type" content="{{ og_type|default:'website' }}">
+<meta property="og:url" content="{{ request.build_absolute_uri }}">
+<meta property="og:title" content="{{ page_title|default:'Ryder Pro | Premium Logistics & Fleet Investments' }}">
+<meta property="og:description" content="{{ page_description|default:'Ryder Pro is a premium logistics platform connecting investors with high-yield commercial vehicles, and providing world-class truck rentals and financing.' }}">
+<meta property="og:image" content="{{ page_image|default:request.scheme|add:'://'|add:request.get_host|add:'/static/images/ryder-pro-og-default.jpg' }}">
+
+<!-- Twitter -->
+<meta property="twitter:card" content="summary_large_image">
+<meta property="twitter:url" content="{{ request.build_absolute_uri }}">
+<meta property="twitter:title" content="{{ page_title|default:'Ryder Pro | Premium Logistics & Fleet Investments' }}">
+<meta property="twitter:description" content="{{ page_description|default:'Ryder Pro is a premium logistics platform connecting investors with high-yield commercial vehicles, and providing world-class truck rentals and financing.' }}">
+<meta property="twitter:image" content="{{ page_image|default:request.scheme|add:'://'|add:request.get_host|add:'/static/images/ryder-pro-og-default.jpg' }}">

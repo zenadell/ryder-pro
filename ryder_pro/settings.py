@@ -25,20 +25,30 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-)@aspi*7yo^q0!u^qpotis%lzpf(fgjvro(unc7gutz9iy$*kb')
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-replace-me-in-production')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = ['*'] # In production, restrict this to your domain and '.onrender.com'
+allowed_hosts_env = os.environ.get('ALLOWED_HOSTS', '127.0.0.1,localhost,192.168.29.238')
+ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(',') if host.strip()]
 
-# Trust the X-Forwarded-Host header from Render's reverse proxy
+# Security Middleware Settings (For Production)
+SECURE_SSL_REDIRECT = not DEBUG
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0  # 1 year
+SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
+SECURE_HSTS_PRELOAD = not DEBUG
+
+# Trust the X-Forwarded-Host header from Render/Reverse proxy
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -48,6 +58,7 @@ INSTALLED_APPS = [
     'django.contrib.humanize',
     'cloudinary_storage',
     'cloudinary',
+    'channels',
     'core',
     'accounts',
 ]
@@ -86,6 +97,13 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'ryder_pro.wsgi.application'
+ASGI_APPLICATION = 'ryder_pro.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+    }
+}
 
 
 # Database
@@ -182,3 +200,13 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 import os
 # Stripe Configuration
 PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY', '')
+
+# Automated Emails Setup
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.hostinger.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 465))
+EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'True') == 'True'
+EMAIL_USE_TLS = not EMAIL_USE_SSL
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'support@ryder-pro.com')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = f'Ryder Pro <{EMAIL_HOST_USER}>'

@@ -486,7 +486,7 @@ class InvestmentAsset(models.Model):
     total_value = models.DecimalField(max_digits=12, decimal_places=2, help_text="Total value of the vehicle, e.g. 120000.00")
     amount_funded = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Total amount invested by users so far")
     min_investment = models.DecimalField(max_digits=12, decimal_places=2, default=2000, help_text="Minimum amount a user can invest (starts at $2,000)")
-    daily_return_percent = models.DecimalField(max_digits=6, decimal_places=3, default=0.5, help_text="Daily earnings as a percent of the invested amount, e.g. 0.5 for 0.5%/day")
+    daily_return_percent = models.DecimalField(max_digits=6, decimal_places=3, default=0.021, help_text="Daily earnings as a percent of the invested amount, e.g. 0.021 for ~8% APY")
 
     is_active = models.BooleanField(default=True, help_text="Show on the invest marketplace and accept new investments")
     is_featured = models.BooleanField(default=False)
@@ -791,3 +791,59 @@ class ChatMessage(models.Model):
 
     def __str__(self):
         return f"{self.role}: {self.content[:50]}"
+
+class CryptoDeposit(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending Verification'),
+        ('verified', 'Verified & Credited'),
+        ('failed', 'Verification Failed'),
+    ]
+    CRYPTO_CHOICES = [
+        ('BTC', 'Bitcoin (BTC)'),
+        ('ETH', 'Ethereum (ETH)'),
+        ('USDT', 'Tether (USDT TRC20)'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='crypto_deposits')
+    crypto_currency = models.CharField(max_length=10, choices=CRYPTO_CHOICES)
+    amount_usd = models.DecimalField(max_digits=12, decimal_places=2)
+    crypto_amount = models.DecimalField(max_digits=18, decimal_places=8)
+    tx_hash = models.CharField(max_length=255, unique=True, help_text="Blockchain Transaction ID")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.crypto_currency} Deposit - {self.user.username} - ${self.amount_usd}"
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    city = models.CharField(max_length=100, null=True, blank=True)
+    country = models.CharField(max_length=100, null=True, blank=True)
+    country_code = models.CharField(max_length=10, null=True, blank=True, help_text="ISO 3166-1 alpha-2 country code")
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
+    network = models.CharField(max_length=100, null=True, blank=True)
+    browser = models.CharField(max_length=100, null=True, blank=True)
+    connection_type = models.CharField(max_length=50, null=True, blank=True)
+    is_active_online = models.BooleanField(default=True)
+    last_login_at = models.DateTimeField(null=True, blank=True)
+    
+    def __str__(self):
+        return f"Profile: {self.user.username}"
+
+
+# ==========================================================
+# Push Notification Models
+# ==========================================================
+
+class AdminDevice(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='admin_devices')
+    push_token = models.CharField(max_length=255, unique=True, help_text="Expo Push Token for iOS/Android")
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Device for {self.user.username} ({self.push_token[:10]}...)"
+
+

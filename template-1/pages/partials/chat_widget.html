@@ -37,8 +37,8 @@
   .ryai-msg .ryai-sp { height:5px; }
   .ryai-msg a { color:var(--ryai-red); font-weight:600; text-decoration:none; border-bottom:1.5px solid rgba(230,0,0,.3); }
   .ryai-msg a:hover { border-bottom-color:var(--ryai-red); }
-  .ryai-msg.me a { color:#fff; border-bottom-color:rgba(255,255,255,.5); }
-  .ryai-msg strong { font-weight:700; }
+  .ryai-msg.bot.agent { background:#fef4f4; border:1px solid #fca5a5; box-shadow:0 2px 10px rgba(239,68,68,.15); }
+  .ryai-msg.bot.agent::before { content:'Human Agent'; display:block; font-size:10px; color:#ef4444; font-weight:700; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px; }
 
   .ryai-chips { display:flex; flex-wrap:wrap; gap:8px; padding:0 20px 12px; background:#f6f7f9; flex-shrink:0; }
   .ryai-chip { background:#fff; border:1px solid #e6e7eb; color:#374151; border-radius:999px; padding:8px 14px; font-size:12.5px; cursor:pointer; transition:.15s; font-weight:500; }
@@ -131,50 +131,144 @@
     closeList();
     return html || '<p class="ryai-p"></p>';
   }
-  function add(role, text){
+  function add(role, text, actualRole){
     var d = document.createElement('div');
     d.className = 'ryai-msg ' + (role==='me'?'me':'bot');
+    if (actualRole === 'agent') d.classList.add('agent');
     d.innerHTML = render(text);
     body.insertBefore(d, typing);
     body.scrollTop = body.scrollHeight;
   }
   function showTyping(on){ typing.style.display = on?'inline-block':'none'; if(on) body.scrollTop=body.scrollHeight; }
 
+  let chatSocket = null;
+  let typingTimeout = null;
+  let lastMsgCount = 0;
+  let currentChatStatus = 'ai_active';
+
+  function initWebSocket(convoId) {
+    if (chatSocket) chatSocket.close();
+    const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+    chatSocket = new WebSocket(`${wsScheme}://${window.location.host}/ws/chat/${convoId}/`);
+    
+    chatSocket.onmessage = function(e) {
+      const data = JSON.parse(e.data);
+      if (data.type === 'message') {
+        if (data.role !== 'user') {
+          showTyping(false);
+          let lastMsg = typing.previousElementSibling;
+          if (lastMsg && lastMsg.innerText.includes(data.message.substring(0, 20))) return;
+          add('bot', data.message, data.role);
+          lastMsgCount++;
+        }
+      } else if (data.type === 'typing') {
+        if (data.role !== 'user') {
+          showTyping(data.is_typing);
+        }
+      }
+    };
+  }
+
+  function handleHistoryResponse(d) {
+    if(d.messages && d.messages.length){
+      if (d.messages.length > lastMsgCount) {
+        body.querySelectorAll('.ryai-msg').forEach(function(n){ n.remove(); });
+        d.messages.forEach(function(m){ add(m.role==='user'?'me':'bot', m.content, m.actual_role); });
+        lastMsgCount = d.messages.length;
+      }
+    }
+    
+    if (d.status === 'human_active') {
+      currentChatStatus = 'human_active';
+      document.querySelector('.ryai-head h4').innerText = "Ryder Support";
+      document.querySelector('.ryai-head p').innerHTML = "<i></i> Connected to Human Agent";
+    } else {
+      currentChatStatus = 'ai_active';
+      document.querySelector('.ryai-head h4').innerText = "Ryder Assistant";
+      document.querySelector('.ryai-head p').innerHTML = "<i></i> Online — ask me anything";
+    }
+
+    if (d.convo_id && !chatSocket) {
+      initWebSocket(d.convo_id);
+    }
+  }
+
+  function fetchHistory() {
+    if(!panel.classList.contains('open')) return;
+    fetch('{% url "chat_history" %}').then(r=>r.json()).then(handleHistoryResponse).catch(function(){});
+  }
+
   function openPanel(){
     panel.classList.add('open'); input.focus();
     if(!loaded){
       loaded = true;
-      fetch('{% url "chat_history" %}').then(r=>r.json()).then(function(d){
-        if(d.messages && d.messages.length){
-          body.querySelectorAll('.ryai-msg').forEach(function(n){ n.remove(); });
-          d.messages.forEach(function(m){ add(m.role==='user'?'me':'bot', m.content); });
-        }
-      }).catch(function(){});
+      fetchHistory();
     }
   }
-  function closePanel(){ panel.classList.remove('open'); }
+  function closePanel(){ 
+    panel.classList.remove('open'); 
+  }
 
   function sendMsg(text){
     text = (text||'').trim(); if(!text) return;
-    add('me', text); input.value=''; send.disabled=true; showTyping(true);
+    add('me', text, 'user'); lastMsgCount++; input.value=''; send.disabled=true; 
+    
+    if (currentChatStatus !== 'human_active') {
+      showTyping(true);
+    }
+    
     if(chips) chips.style.display='none';
+    if(chatSocket) chatSocket.send(JSON.stringify({type: 'typing', role: 'user', is_typing: false}));
+    
     fetch('{% url "chat_send" %}', {
       method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},
       body: JSON.stringify({message:text})
     }).then(r=>r.json()).then(function(d){
       showTyping(false); send.disabled=false; input.focus();
-      add('bot', d.reply || "Sorry, please try again.");
+      
+      if (d.convo_id && !chatSocket) {
+        initWebSocket(d.convo_id);
+      }
+
+      if (d.status !== 'human_active') {
+        currentChatStatus = d.status || 'ai_active';
+        document.querySelector('.ryai-head h4').innerText = "Ryder Assistant";
+        document.querySelector('.ryai-head p').innerHTML = "<i></i> We reply immediately";
+        let replyText = d.reply || "Sorry, please try again.";
+        let lastMsg = typing.previousElementSibling;
+        if (lastMsg && lastMsg.innerText.includes(replyText.substring(0, 20))) return;
+        add('bot', replyText, 'assistant');
+        lastMsgCount++;
+      } else {
+        currentChatStatus = 'human_active';
+        document.querySelector('.ryai-head h4').innerText = "Ryder Support";
+        document.querySelector('.ryai-head p').innerHTML = "<i></i> Connected to Human Agent";
+      }
     }).catch(function(){
       showTyping(false); send.disabled=false;
-      add('bot', "I couldn't reach the server. Please try again.");
+      add('bot', "I couldn't reach the server. Please try again.", 'assistant');
     });
   }
 
   fab.addEventListener('click', function(){ panel.classList.contains('open')?closePanel():openPanel(); });
   document.getElementById('ryaiClose').addEventListener('click', closePanel);
   send.addEventListener('click', function(){ sendMsg(input.value); });
-  input.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); sendMsg(input.value); } });
-  chips.addEventListener('click', function(e){ if(e.target.classList.contains('ryai-chip')) sendMsg(e.target.getAttribute('data-q')); });
+  input.addEventListener('keydown', function(e){ 
+    if(e.key==='Enter'){ 
+      e.preventDefault(); sendMsg(input.value); 
+    } 
+  });
+  
+  input.addEventListener('input', function(e) {
+    if(chatSocket) {
+      chatSocket.send(JSON.stringify({type: 'typing', role: 'user', is_typing: true}));
+      clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(() => {
+        if (chatSocket) chatSocket.send(JSON.stringify({type: 'typing', role: 'user', is_typing: false}));
+      }, 2000);
+    }
+  });
+  if(chips) chips.addEventListener('click', function(e){ if(e.target.classList.contains('ryai-chip')) sendMsg(e.target.getAttribute('data-q')); });
 })();
 </script>
 <!-- /Ryder AI Assistant widget -->

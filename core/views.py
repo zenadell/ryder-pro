@@ -1311,64 +1311,15 @@ def admin_ai_query_view(request):
             if not question.strip():
                 return JsonResponse({'status': 'error', 'message': 'Please ask a question.'})
             
-            # Build full user context for the AI
-            users = User.objects.select_related('profile').all()
-            user_data = []
-            for u in users:
-                profile = getattr(u, 'profile', None)
-                wallet = InvestorWallet.objects.filter(user=u).first()
-                investments = Investment.objects.filter(user=u)
-                
-                entry = {
-                    'id': u.id,
-                    'username': u.username,
-                    'email': u.email,
-                    'first_name': u.first_name,
-                    'last_name': u.last_name,
-                    'is_active': u.is_active,
-                    'is_staff': u.is_staff,
-                    'date_joined': str(u.date_joined),
-                    'last_login': str(u.last_login),
-                }
-                if profile:
-                    entry.update({
-                        'ip_address': profile.ip_address,
-                        'city': profile.city,
-                        'country': profile.country,
-                        'country_code': profile.country_code,
-                        'latitude': profile.latitude,
-                        'longitude': profile.longitude,
-                    })
-                if wallet:
-                    entry.update({
-                        'wallet_balance': float(wallet.balance),
-                        'total_deposited': float(wallet.total_deposited),
-                        'total_withdrawn': float(wallet.total_withdrawn),
-                        'total_earned': float(wallet.total_earned),
-                    })
-                if investments.exists():
-                    entry['investments'] = [
-                        {'asset': inv.asset.name, 'amount': float(inv.amount), 'status': inv.status}
-                        for inv in investments
-                    ]
-                user_data.append(entry)
-            
-            system_prompt = f"""You are the Admin AI Assistant for Ryder Pro, a car dealership and investment platform.
-You have FULL access to all user data in the database. Below is the complete user database:
-
-{json.dumps(user_data, indent=2, default=str)}
-
-TOTAL USERS: {len(user_data)}
-
-Instructions:
-- Answer any question the admin asks about users.
-- You can look up users by email, name, username, or any field.
-- You can summarize user statistics, locations, investment data, etc.
-- Be concise but thorough. Use bullet points and formatting.
-- If asked about a specific user, provide all relevant data about them.
-- If asked about locations, reference city and country data.
-- Always be helpful and professional.
-- CRITICAL: You MUST answer exclusively in English. Under NO circumstances should you reply in Chinese or any other language."""
+            system_prompt = """You are the Admin AI Assistant for Ryder Pro.
+You have FULL access to the database via function tools.
+Use the tools to answer the user's questions or perform actions on their behalf.
+If you need to know what models exist, use `list_models`.
+If you need to query data, use `query_records`.
+If you need to add data, use `create_record`.
+If you need to modify data, use `update_record`.
+If you need to delete data, use `delete_record`.
+CRITICAL: You MUST answer exclusively in English."""
 
             # Use ChatConfig for DeepSeek integration
             from .models import ChatConfig
@@ -1382,16 +1333,132 @@ Instructions:
                 base_url=config.base_url
             )
             
-            response = client.chat.completions.create(
-                model=config.model_name,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": question}
-                ],
-                max_tokens=1000
-            )
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": question}
+            ]
             
-            answer = response.choices[0].message.content
+            tools = [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "list_models",
+                        "description": "Get a list of all database models and their fields. Useful for understanding the schema."
+                    }
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "query_records",
+                        "description": "Query records from a specific model. Use filters to narrow down results.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "model_name": {"type": "string"},
+                                "filters": {"type": "object"},
+                                "limit": {"type": "integer"}
+                            },
+                            "required": ["model_name"]
+                        }
+                    }
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "create_record",
+                        "description": "Create a new record in a specific model.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "model_name": {"type": "string"},
+                                "data": {"type": "object"}
+                            },
+                            "required": ["model_name", "data"]
+                        }
+                    }
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "update_record",
+                        "description": "Update an existing record in a specific model.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "model_name": {"type": "string"},
+                                "record_id": {"type": "string", "description": "The ID of the record to update (usually integer or UUID)."},
+                                "data": {"type": "object"}
+                            },
+                            "required": ["model_name", "record_id", "data"]
+                        }
+                    }
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "delete_record",
+                        "description": "Delete an existing record in a specific model.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "model_name": {"type": "string"},
+                                "record_id": {"type": "string", "description": "The ID of the record to delete."}
+                            },
+                            "required": ["model_name", "record_id"]
+                        }
+                    }
+                }
+            ]
+            
+            from .admin_ai_tools import list_models, query_records, create_record, update_record, delete_record
+            
+            for _ in range(8): # Max 8 iterations to allow complex tasks
+                response = client.chat.completions.create(
+                    model=config.model_name,
+                    messages=messages,
+                    tools=tools,
+                    tool_choice="auto",
+                    max_tokens=2000
+                )
+                
+                message = response.choices[0].message
+                
+                if message.tool_calls:
+                    messages.append(message)
+                    for tool_call in message.tool_calls:
+                        function_name = tool_call.function.name
+                        try:
+                            arguments = json.loads(tool_call.function.arguments)
+                        except:
+                            arguments = {}
+                            
+                        result = "{}"
+                        if function_name == 'list_models':
+                            result = list_models()
+                        elif function_name == 'query_records':
+                            result = query_records(arguments.get('model_name'), arguments.get('filters'), arguments.get('limit', 50))
+                        elif function_name == 'create_record':
+                            result = create_record(arguments.get('model_name'), arguments.get('data'))
+                        elif function_name == 'update_record':
+                            result = update_record(arguments.get('model_name'), arguments.get('record_id'), arguments.get('data'))
+                        elif function_name == 'delete_record':
+                            result = delete_record(arguments.get('model_name'), arguments.get('record_id'))
+                        else:
+                            result = json.dumps({"error": "Unknown function"})
+                            
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "name": function_name,
+                            "content": result
+                        })
+                else:
+                    return JsonResponse({
+                        'status': 'success',
+                        'answer': message.content
+                    })
+                    
+            answer = "I executed some steps but ran out of time to complete everything. Please try breaking your request into smaller pieces."
             
             return JsonResponse({
                 'status': 'success',

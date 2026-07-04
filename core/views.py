@@ -1312,13 +1312,16 @@ def admin_ai_query_view(request):
                 return JsonResponse({'status': 'error', 'message': 'Please ask a question.'})
             
             system_prompt = """You are the Admin AI Assistant for Ryder Pro.
-You have FULL access to the database via function tools.
+You have FULL access to the database via function tools AND full access to the website source code via file tools.
 Use the tools to answer the user's questions or perform actions on their behalf.
 If you need to know what models exist, use `list_models`.
 If you need to query data, use `query_records`.
 If you need to add data, use `create_record`.
 If you need to modify data, use `update_record`.
 If you need to delete data, use `delete_record`.
+If you need to view website templates/code, use `read_file` (e.g., 'template-1/pages/partials/footer.html').
+If you need to modify website templates/code, use `edit_file`.
+When adding socials, update the `SiteContent` model (keys like `whatsapp_url`, `facebook_url`) OR modify the templates directly if needed.
 CRITICAL: You MUST answer exclusively in English."""
 
             # Use ChatConfig for DeepSeek integration
@@ -1407,10 +1410,39 @@ CRITICAL: You MUST answer exclusively in English."""
                             "required": ["model_name", "record_id"]
                         }
                     }
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "read_file",
+                        "description": "Read the contents of a file in the project (e.g. templates).",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "filepath": {"type": "string", "description": "Relative path to the file (e.g. 'template-1/pages/partials/footer.html')"}
+                            },
+                            "required": ["filepath"]
+                        }
+                    }
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "edit_file",
+                        "description": "Overwrite a file with new content. Ensure you include the full file content.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "filepath": {"type": "string"},
+                                "content": {"type": "string", "description": "The complete new text content for the file."}
+                            },
+                            "required": ["filepath", "content"]
+                        }
+                    }
                 }
             ]
             
-            from .admin_ai_tools import list_models, query_records, create_record, update_record, delete_record
+            from .admin_ai_tools import list_models, query_records, create_record, update_record, delete_record, read_file, edit_file
             
             for _ in range(8): # Max 8 iterations to allow complex tasks
                 response = client.chat.completions.create(
@@ -1443,6 +1475,10 @@ CRITICAL: You MUST answer exclusively in English."""
                             result = update_record(arguments.get('model_name'), arguments.get('record_id'), arguments.get('data'))
                         elif function_name == 'delete_record':
                             result = delete_record(arguments.get('model_name'), arguments.get('record_id'))
+                        elif function_name == 'read_file':
+                            result = read_file(arguments.get('filepath'))
+                        elif function_name == 'edit_file':
+                            result = edit_file(arguments.get('filepath'), arguments.get('content'))
                         else:
                             result = json.dumps({"error": "Unknown function"})
                             

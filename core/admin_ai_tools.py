@@ -123,7 +123,51 @@ def delete_record(model_name: str, record_id):
     try:
         model = get_model_class(model_name)
         obj = model.objects.get(pk=record_id)
+        
+        # If deleting a User, also delete from Supabase auth.users
+        if model.__name__ == 'User':
+            email = obj.email
+            from django.db import connection
+            with connection.cursor() as cursor:
+                cursor.execute('DELETE FROM auth.users WHERE email = %s', [email])
+                
         obj.delete()
         return json.dumps({"status": "success", "message": f"Deleted {model_name} with ID {record_id}"})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+import os
+from django.conf import settings
+
+def read_file(filepath: str):
+    """
+    Read the contents of a file (useful for reading templates/html).
+    """
+    try:
+        base_dir = str(settings.BASE_DIR)
+        full_path = os.path.join(base_dir, filepath)
+        if not os.path.exists(full_path):
+            return json.dumps({"status": "error", "message": "File not found."})
+            
+        with open(full_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return json.dumps({"status": "success", "content": content})
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+def edit_file(filepath: str, content: str):
+    """
+    Overwrite a file with new content.
+    """
+    try:
+        base_dir = str(settings.BASE_DIR)
+        full_path = os.path.join(base_dir, filepath)
+        
+        # Make directories if they don't exist
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+            
+        with open(full_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        return json.dumps({"status": "success", "message": f"File {filepath} updated successfully."})
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})

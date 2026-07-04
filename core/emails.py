@@ -3,6 +3,14 @@ from django.template.loader import render_to_string
 from django.conf import settings
 from django.utils.html import strip_tags
 
+import threading
+
+def _send_email_thread(msg, to_email):
+    try:
+        msg.send(fail_silently=False)
+    except Exception as e:
+        print(f"Failed to send email to {to_email}: {str(e)}")
+
 def send_ryder_email(to_email, subject, template_name, context):
     """
     Sends a beautiful HTML email using the provided template and context.
@@ -18,12 +26,10 @@ def send_ryder_email(to_email, subject, template_name, context):
     )
     msg.attach_alternative(html_content, "text/html")
     
-    try:
-        msg.send(fail_silently=False)
-        return True
-    except Exception as e:
-        print(f"Failed to send email to {to_email}: {str(e)}")
-        return False
+    # Send email in a background thread to avoid blocking the request
+    thread = threading.Thread(target=_send_email_thread, args=(msg, to_email))
+    thread.start()
+    return True
 
 def send_welcome_email(user):
     context = {

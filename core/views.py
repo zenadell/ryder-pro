@@ -173,6 +173,7 @@ def car_details_view(request, slug):
     )
     
     live_viewers = PageVisit.objects.filter(vehicle=vehicle).count()
+    social_proof_mode = 'real'
     context = {
         'vehicle': vehicle,
         'related_vehicles': related_vehicles,
@@ -810,7 +811,7 @@ def invest_asset_detail_view(request, slug):
         'wallet': wallet,
         'related': InvestmentAsset.objects.filter(is_active=True, asset_type=asset.asset_type).exclude(pk=asset.pk)[:3],
         'page_title': f"Invest in {asset.name} | Ryder Pro",
-        'page_description': f"Earn {asset.daily_return_percent}% daily passive income by investing in the {asset.name}. Total valuation: ${asset.total_valuation}.",
+        'page_description': f"Earn {asset.daily_return_percent}% daily passive income by investing in the {asset.name}. Total valuation: ${asset.total_value}.",
         'page_image': image_url,
     }
     return render(request, 'invest/detail.html', context)

@@ -99,7 +99,11 @@
                     <span>Ryder Pro</span>
                 </a>
                 
-                <img src="{% static 'images/mobile_auth.png' %}" alt="Signup Illustration" class="mobile-illustration">
+                {% if auth_media.type == 'video' %}
+                    <video src="{{ auth_media.url }}" autoplay loop muted playsinline class="mobile-illustration" style="border-radius: 16px; object-fit: cover; aspect-ratio: 16/9; max-width: 100%; box-shadow: 0 10px 20px rgba(0,0,0,0.1); margin-bottom: 30px;"></video>
+                {% else %}
+                    <img src="{{ auth_media.url }}" alt="Welcome to Ryder Pro" class="mobile-illustration" style="border-radius: 16px; object-fit: cover; aspect-ratio: 16/9; max-width: 100%; box-shadow: 0 10px 20px rgba(0,0,0,0.1); margin-bottom: 30px;">
+                {% endif %}
                 
                 <h1 class="auth-title">Sign Up Now</h1>
                 <p class="auth-subtitle">Create an account to track orders and rent vehicles.</p>

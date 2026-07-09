@@ -10,43 +10,47 @@ from ryder_pro.supabase_client import get_supabase
 from core.emails import send_welcome_email
 
 def signup_view(request):
-    if request.method == 'POST':
-        form = CustomUserCreationForm(request.POST)
-        if form.is_valid():
-            email = form.cleaned_data.get('email')
-            password = form.cleaned_data.get('password')
-            first_name = form.cleaned_data.get('first_name')
-            last_name = form.cleaned_data.get('last_name')
-            
-            supabase = get_supabase(request)
-            if supabase:
-                try:
-                    res = supabase.auth.sign_up({
-                        "email": email, 
-                        "password": password,
-                        "options": {"data": {"first_name": first_name, "last_name": last_name}}
-                    })
-                except Exception as e:
-                    messages.error(request, f"Supabase Error: {str(e)}")
-                    return render(request, 'accounts/signup.html', {'form': form})
-            
-            user = form.save()
-            user.email = email
-            user.save()
-            
-            # Send automated welcome email
-            send_welcome_email(user)
-            
-            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
-            messages.success(request, 'Account created successfully! Welcome to Ryder Pro.')
-            return redirect('dashboard')
+    try:
+        if request.method == 'POST':
+            form = CustomUserCreationForm(request.POST)
+            if form.is_valid():
+                email = form.cleaned_data.get('email')
+                password = form.cleaned_data.get('password')
+                first_name = form.cleaned_data.get('first_name')
+                last_name = form.cleaned_data.get('last_name')
+                
+                supabase = get_supabase(request)
+                if supabase:
+                    try:
+                        res = supabase.auth.sign_up({
+                            "email": email, 
+                            "password": password,
+                            "options": {"data": {"first_name": first_name, "last_name": last_name}}
+                        })
+                    except Exception as e:
+                        messages.error(request, f"Supabase Error: {str(e)}")
+                        return render(request, 'accounts/signup.html', {'form': form})
+                
+                user = form.save()
+                user.email = email
+                user.save()
+                
+                # Send automated welcome email
+                send_welcome_email(user)
+                
+                login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+                messages.success(request, 'Account created successfully! Welcome to Ryder Pro.')
+                return redirect('dashboard')
+            else:
+                for field in form:
+                    for error in field.errors:
+                        messages.error(request, f"{field.label}: {error}")
+                for error in form.non_field_errors():
+                    messages.error(request, error)
         else:
-            for field in form:
-                for error in field.errors:
-                    messages.error(request, f"{field.label}: {error}")
-            for error in form.non_field_errors():
-                messages.error(request, error)
-    else:
+            form = CustomUserCreationForm()
+    except Exception as e:
+        messages.error(request, 'Service temporarily unavailable. Please try again in a moment.')
         form = CustomUserCreationForm()
         
     return render(request, 'accounts/signup.html', {'form': form})

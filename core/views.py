@@ -1545,3 +1545,9 @@ def add_funds_redirect(request):
     from django.shortcuts import redirect
     return redirect('invest_deposit')
 
+
+def health_check(request):
+    """
+    Lightweight endpoint for uptime monitoring to keep the server awake.
+    """
+    return JsonResponse({'status': 'ok', 'timestamp': timezone.now().isoformat()})

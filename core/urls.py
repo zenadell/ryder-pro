@@ -80,4 +80,7 @@ urlpatterns = [
     
     # Redirects for old AI links
     path('add-funds/', views.add_funds_redirect, name='add_funds_redirect'),
+    
+    # Health check / keep-alive endpoint
+    path('health/', views.health_check, name='health_check'),
 ]

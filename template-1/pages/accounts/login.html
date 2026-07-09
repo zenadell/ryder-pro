@@ -98,7 +98,11 @@
                     <span>Ryder Pro</span>
                 </a>
                 
-                <img src="{% static 'images/mobile_auth.png' %}" alt="Login Illustration" class="mobile-illustration">
+                {% if auth_media.type == 'video' %}
+                    <video src="{{ auth_media.url }}" autoplay loop muted playsinline class="mobile-illustration" style="border-radius: 16px; object-fit: cover; aspect-ratio: 16/9; max-width: 100%; box-shadow: 0 10px 20px rgba(0,0,0,0.1); margin-bottom: 30px;"></video>
+                {% else %}
+                    <img src="{{ auth_media.url }}" alt="Welcome to Ryder Pro" class="mobile-illustration" style="border-radius: 16px; object-fit: cover; aspect-ratio: 16/9; max-width: 100%; box-shadow: 0 10px 20px rgba(0,0,0,0.1); margin-bottom: 30px;">
+                {% endif %}
                 
                 <h1 class="auth-title">Log In</h1>
                 <p class="auth-subtitle">Welcome back! Please enter your details.</p>
@@ -149,9 +153,7 @@
                 <a href="{% url 'oauth_login' provider='google' %}" class="social-btn">
                     <img src="https://cdn-icons-png.flaticon.com/512/2991/2991148.png" alt="Google"> Continue with Google
                 </a>
-                <a href="{% url 'oauth_login' provider='apple' %}" class="social-btn">
-                    <img src="https://cdn-icons-png.flaticon.com/512/0/747.png" alt="Apple"> Continue with Apple
-                </a>
+
                 <a href="/" class="social-btn">
                     <img src="https://cdn-icons-png.flaticon.com/512/1077/1077063.png" alt="Guest"> Continue as Guest
                 </a>

@@ -1457,7 +1457,7 @@ WHERE THE SETTINGS LIVE (most common admin requests):
                 api_key=config.api_key,
                 base_url=config.base_url,
                 timeout=30,
-                max_retries=1,
+                max_retries=0,
             )
 
             # Preload the live Fleet Share plans (with ids) and key settings so the
@@ -1479,7 +1479,10 @@ WHERE THE SETTINGS LIVE (most common admin requests):
                                 + "\n".join(plan_lines))
                 pm = SiteContent.objects.filter(key='payment_mode').first()
                 if pm:
-                    live_context += f"\n\nCurrent payment_mode = {pm.value}"
+                    live_context += (f"\n\nCurrent payment_mode = '{pm.value}' "
+                                     f"(SiteContent id={pm.id}). To change it, update_record "
+                                     f"SiteContent id={pm.id} data={{\"value\": \"card\"|\"crypto\"|\"both\"}} "
+                                     f"— no lookup needed.")
                 system_prompt = system_prompt + live_context
             except Exception:
                 pass
@@ -1630,13 +1633,15 @@ WHERE THE SETTINGS LIVE (most common admin requests):
                 
                 if message.tool_calls:
                     messages.append(message)
+                    step_calls = []  # (function_name, result) for this step
+                    MUTATION_TOOLS = {'create_record', 'update_record', 'delete_record', 'edit_file'}
                     for tool_call in message.tool_calls:
                         function_name = tool_call.function.name
                         try:
                             arguments = json.loads(tool_call.function.arguments)
                         except:
                             arguments = {}
-                            
+
                         result = "{}"
                         if function_name == 'list_models':
                             result = list_models()
@@ -1660,12 +1665,36 @@ WHERE THE SETTINGS LIVE (most common admin requests):
                         if result and len(result) > MAX_TOOL_CHARS:
                             result = result[:MAX_TOOL_CHARS] + ' ... [truncated]'
 
+                        step_calls.append((function_name, result))
                         messages.append({
                             "role": "tool",
                             "tool_call_id": tool_call.id,
                             "name": function_name,
                             "content": result
                         })
+
+                    # Fast path: if this step was ONLY successful changes (no reads),
+                    # confirm and return now instead of paying for another slow model
+                    # round-trip (which is what pushed action requests past the gateway
+                    # timeout and showed as "Network error").
+                    if step_calls and all(fn in MUTATION_TOOLS for fn, _ in step_calls):
+                        confirmations = []
+                        all_ok = True
+                        for fn, res in step_calls:
+                            try:
+                                parsed = json.loads(res)
+                            except Exception:
+                                parsed = {}
+                            if parsed.get('status') == 'success':
+                                confirmations.append(parsed.get('message') or 'Done.')
+                            else:
+                                all_ok = False
+                                break
+                        if all_ok:
+                            answer = "✅ " + " ".join(confirmations)
+                            save_history(answer)
+                            return JsonResponse({'status': 'success', 'answer': answer})
+                        # A change failed — let the model see the error and react.
                 else:
                     save_history(message.content)
                     return JsonResponse({

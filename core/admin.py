@@ -6,7 +6,7 @@ from .models import (
     Job, JobApplication, FinancingApplication, GalleryImage, TradeInRequest, RentalRequest, Shipment,
     GeminiAPIKey, BulkImport, InstallmentPlan, PaymentTransaction,
     InvestmentAsset, Investment, InvestorWallet, InvestmentTransaction,
-    WithdrawalWindow, WithdrawalRequest,
+    WithdrawalWindow, WithdrawalRequest, CryptoDeposit,
     ChatConfig, ChatConversation, ChatMessage,
     UserProfile,
 )
@@ -198,7 +198,10 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
 class InvestmentAssetAdmin(admin.ModelAdmin):
     list_display = ('name', 'asset_type', 'total_value', 'amount_funded', 'funded_percent', 'daily_return_percent', 'min_investment', 'is_active', 'is_featured')
     list_filter = ('asset_type', 'is_active', 'is_featured')
-    list_editable = ('is_active', 'is_featured', 'daily_return_percent')
+    # Return % and minimum buy-in are editable inline per asset (and per type),
+    # so the company can adjust plans anytime without code changes. New vehicles
+    # added later expose the same fields on the add/edit form automatically.
+    list_editable = ('daily_return_percent', 'min_investment', 'total_value', 'is_active', 'is_featured')
     search_fields = ('name', 'description')
     prepopulated_fields = {'slug': ('name',)}
 
@@ -233,10 +236,18 @@ class WithdrawalWindowAdmin(admin.ModelAdmin):
 
 @admin.register(WithdrawalRequest)
 class WithdrawalRequestAdmin(admin.ModelAdmin):
-    list_display = ('user', 'amount', 'fee', 'fee_paid', 'net_payout', 'status', 'window', 'created_at', 'processed_at')
+    list_display = ('user', 'amount', 'fee', 'fee_paid', 'net_payout', 'payout_method', 'payout_details', 'status', 'window', 'created_at', 'processed_at')
     list_filter = ('status', 'fee_paid', 'created_at')
-    search_fields = ('user__username',)
+    search_fields = ('user__username', 'payout_details')
     readonly_fields = ('created_at',)
+
+
+@admin.register(CryptoDeposit)
+class CryptoDepositAdmin(admin.ModelAdmin):
+    list_display = ('user', 'purpose', 'crypto_currency', 'amount_usd', 'crypto_amount', 'status', 'tx_hash', 'created_at', 'verified_at')
+    list_filter = ('status', 'purpose', 'crypto_currency', 'created_at')
+    search_fields = ('user__username', 'tx_hash')
+    readonly_fields = ('created_at', 'verified_at')
 
 
 # ---- Ryder AI Assistant ----

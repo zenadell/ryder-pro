@@ -797,6 +797,9 @@ class ChatMessage(models.Model):
 
 class CryptoDeposit(models.Model):
     STATUS_CHOICES = [
+        # Deposit intent created; we've shown the user the exact tagged amount to
+        # send but no transaction hash has been submitted/verified yet.
+        ('awaiting_payment', 'Awaiting Payment'),
         ('pending', 'Pending Verification'),
         ('verified', 'Verified & Credited'),
         ('failed', 'Verification Failed'),
@@ -806,11 +809,25 @@ class CryptoDeposit(models.Model):
         ('ETH', 'Ethereum (ETH)'),
         ('USDT', 'Tether (USDT TRC20)'),
     ]
+    # What this crypto payment is FOR: funding the wallet, or paying the
+    # cumulative withdrawal-release fee. Decides what happens on verification.
+    PURPOSE_CHOICES = [
+        ('deposit', 'Wallet Funding'),
+        ('fee', 'Withdrawal Release Fee'),
+    ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='crypto_deposits')
+    purpose = models.CharField(max_length=20, choices=PURPOSE_CHOICES, default='deposit')
     crypto_currency = models.CharField(max_length=10, choices=CRYPTO_CHOICES)
     amount_usd = models.DecimalField(max_digits=12, decimal_places=2)
+    # The EXACT, uniquely-tagged crypto amount the user must send. Uniqueness of
+    # this value among outstanding deposits is what ties an on-chain payment to a
+    # specific user's deposit intent (prevents claiming someone else's payment).
     crypto_amount = models.DecimalField(max_digits=18, decimal_places=8)
-    tx_hash = models.CharField(max_length=255, unique=True, help_text="Blockchain Transaction ID")
+    # Null until the user submits a hash — a deposit is created at "generate
+    # payment" time, before any transaction exists. unique=True still holds:
+    # Postgres allows multiple NULLs, so many awaiting_payment rows coexist.
+    tx_hash = models.CharField(max_length=255, unique=True, null=True, blank=True,
+                               help_text="Blockchain Transaction ID")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
     verified_at = models.DateTimeField(null=True, blank=True)

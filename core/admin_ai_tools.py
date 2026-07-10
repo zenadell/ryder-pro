@@ -139,18 +139,31 @@ def delete_record(model_name: str, record_id):
 import os
 from django.conf import settings
 
+
+def _safe_full_path(filepath: str):
+    """Resolve `filepath` inside the project and refuse anything that escapes it
+    (absolute paths, `..` traversal). Returns the absolute path or raises."""
+    base_dir = os.path.realpath(str(settings.BASE_DIR))
+    full_path = os.path.realpath(os.path.join(base_dir, filepath or ''))
+    if full_path != base_dir and not full_path.startswith(base_dir + os.sep):
+        raise ValueError("Path is outside the project directory and is not allowed.")
+    return full_path
+
+
 def read_file(filepath: str):
     """
     Read the contents of a file (useful for reading templates/html).
     """
     try:
-        base_dir = str(settings.BASE_DIR)
-        full_path = os.path.join(base_dir, filepath)
-        if not os.path.exists(full_path):
+        full_path = _safe_full_path(filepath)
+        if not os.path.isfile(full_path):
             return json.dumps({"status": "error", "message": "File not found."})
-            
+
         with open(full_path, 'r', encoding='utf-8') as f:
             content = f.read()
+        # Guard against returning an enormous file that would blow up the AI's context.
+        if len(content) > 24000:
+            content = content[:24000] + "\n... [truncated — file is longer]"
         return json.dumps({"status": "success", "content": content})
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})
@@ -160,14 +173,11 @@ def edit_file(filepath: str, content: str):
     Overwrite a file with new content.
     """
     try:
-        base_dir = str(settings.BASE_DIR)
-        full_path = os.path.join(base_dir, filepath)
-        
-        # Make directories if they don't exist
+        full_path = _safe_full_path(filepath)
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
-            
+
         with open(full_path, 'w', encoding='utf-8') as f:
-            f.write(content)
+            f.write(content or '')
         return json.dumps({"status": "success", "message": f"File {filepath} updated successfully."})
     except Exception as e:
         return json.dumps({"status": "error", "message": str(e)})

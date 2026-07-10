@@ -224,45 +224,238 @@ def get_live_crypto_rates():
         pass
     return rates
 
-def verify_crypto_transaction(tx_hash, crypto_currency, expected_usd, dummy_mode=False):
+# Deposit wallet addresses. These MUST match the addresses shown to the user on
+# the checkout page (SiteContent keys crypto_*_address, with the same fallbacks
+# used by invest/checkout.html). Verification compares the on-chain recipient
+# against these — so they have to be identical or every payment is rejected.
+DEFAULT_DEPOSIT_ADDRESSES = {
+    'BTC': '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+    'ETH': '0x71C7656EC7ab88b098defB751B7401B5f6d8976F',
+    'USDT': 'TXLAQ63Xg1NMaF3yGjR91A8R3B8X5Y3x',
+}
+
+# Minimum confirmations required before a deposit is trusted.
+MIN_CONFIRMATIONS = {'BTC': 1, 'ETH': 2, 'USDT': 1}
+
+# Per-coin tag configuration. `floor` is how far we round the base amount DOWN
+# before adding a unique nonce; `unit` is the size of one nonce step (also the
+# width of the accepted match band); `nmax` is how many distinct tags exist.
+# The uniquely-tagged amount is what ties an on-chain payment to one specific
+# user's deposit, so the match must be exact to within one `unit`.
+from decimal import Decimal, ROUND_DOWN
+
+_SATOSHI = Decimal('0.00000001')  # 8 dp, the precision we store/compare at
+TAG_CONFIG = {
+    'BTC':  {'floor': Decimal('0.00001'), 'unit': Decimal('0.00000001'), 'nmax': 999},
+    'ETH':  {'floor': Decimal('0.00001'), 'unit': Decimal('0.00000001'), 'nmax': 999},
+    'USDT': {'floor': Decimal('1'),       'unit': Decimal('0.01'),       'nmax': 99},
+}
+
+
+def _get_deposit_address(crypto_currency):
+    """The configured deposit address for a coin, falling back to the same
+    default the checkout template shows."""
+    from .models import SiteContent
+    key = f"crypto_{crypto_currency.lower()}_address"
+    try:
+        val = (SiteContent.objects.get(key=key).value or '').strip()
+        if val:
+            return val
+    except SiteContent.DoesNotExist:
+        pass
+    return DEFAULT_DEPOSIT_ADDRESSES.get(crypto_currency, '')
+
+
+def generate_unique_tagged_amount(crypto_currency, base_crypto):
     """
-    Automated API Verification of crypto transactions.
+    Produce an EXACT crypto amount, close to `base_crypto`, that is unique among
+    all currently-outstanding deposits of this coin. The user is told to send
+    precisely this amount; because it is unique, the resulting on-chain payment
+    can be matched to exactly one deposit intent — so no user can claim another
+    user's payment. Returns a Decimal (8 dp) or None if no free tag is available.
     """
-    if dummy_mode and tx_hash.startswith('test_'):
+    import random
+    from .models import CryptoDeposit
+
+    cfg = TAG_CONFIG.get(crypto_currency)
+    if not cfg:
+        return None
+
+    base = Decimal(str(base_crypto))
+    floor_amt = base.quantize(cfg['floor'], rounding=ROUND_DOWN)
+
+    # Amounts already reserved by deposits that could still be matched.
+    taken = set(
+        CryptoDeposit.objects.filter(
+            crypto_currency=crypto_currency,
+            status__in=['awaiting_payment', 'pending'],
+        ).values_list('crypto_amount', flat=True)
+    )
+
+    nonces = list(range(1, cfg['nmax'] + 1))
+    random.shuffle(nonces)
+    for n in nonces:
+        tagged = (floor_amt + cfg['unit'] * n).quantize(_SATOSHI)
+        if tagged > 0 and tagged not in taken:
+            return tagged
+    return None
+
+
+def _amount_matches(received, expected, crypto_currency):
+    """True when `received` lands in [expected, expected + one tag unit): the
+    exact tag or a tiny overpay, but never far enough to collide with the next
+    tag slot. Underpayment is rejected."""
+    cfg = TAG_CONFIG.get(crypto_currency, {'unit': _SATOSHI})
+    received = Decimal(received)
+    return expected <= received < (expected + cfg['unit'])
+
+
+def verify_crypto_transaction(tx_hash, crypto_currency, expected_crypto, dummy_mode=False):
+    """
+    Verify that a real, confirmed on-chain payment of EXACTLY `expected_crypto`
+    (the uniquely-tagged amount for one deposit) was made TO OUR deposit address.
+
+    Returns (is_valid, message). Accepted only when ALL hold:
+      1. The transaction exists and is confirmed on the correct network.
+      2. Its recipient is our configured deposit address for that coin.
+      3. The amount sent to us matches the unique tagged amount exactly
+         (to within one tag unit — a tiny overpay is tolerated).
+
+    Existence alone is NOT sufficient (the old hole), and neither is a
+    right-address-wrong-amount payment. Hash uniqueness is enforced by the
+    caller so a payment can only ever be claimed once.
+    """
+    if dummy_mode and str(tx_hash).startswith('test_'):
         return True, "Verified via Developer Bypass"
+
+    tx_hash = (tx_hash or '').strip()
+    if not tx_hash:
+        return False, "No transaction hash provided."
+
+    try:
+        expected_crypto = Decimal(str(expected_crypto))
+    except Exception:
+        return False, "Invalid expected amount."
+    if expected_crypto <= 0:
+        return False, "Invalid expected amount."
+
+    our_address = _get_deposit_address(crypto_currency)
+    if not our_address:
+        return False, "Deposit address is not configured. Contact support."
 
     try:
         if crypto_currency == 'BTC':
-            # Real BTC verification using BlockCypher
-            resp = requests.get(f"https://api.blockcypher.com/v1/btc/main/txs/{tx_hash}", timeout=10)
-            if resp.status_code == 200:
-                data = resp.json()
-                if data.get('confirmations', 0) >= 3:
-                    return True, "Verified successfully on Bitcoin network"
-                else:
-                    return False, f"Transaction found but needs 3 confirmations (currently {data.get('confirmations', 0)})"
-            return False, "BTC transaction not found or invalid"
-
-        elif crypto_currency in ['ETH', 'USDT']:
-            # Real ETH/USDT verification using Etherscan API
-            from .models import SiteContent
-            try:
-                etherscan_key = SiteContent.objects.get(key='etherscan_api_key').value
-            except SiteContent.DoesNotExist:
-                etherscan_key = ''
-                
-            api_url = f"https://api.etherscan.io/api?module=proxy&action=eth_getTransactionByHash&txhash={tx_hash}"
-            if etherscan_key:
-                api_url += f"&apikey={etherscan_key}"
-                
-            resp = requests.get(api_url, timeout=10)
-            if resp.status_code == 200:
-                data = resp.json()
-                if data.get('result') is not None:
-                    return True, f"Verified successfully on Ethereum network"
-            return False, f"{crypto_currency} transaction not found or invalid"
-            
+            received, err = _fetch_btc_received(tx_hash, our_address)
+        elif crypto_currency == 'ETH':
+            received, err = _fetch_eth_received(tx_hash, our_address)
+        elif crypto_currency == 'USDT':
+            received, err = _fetch_usdt_received(tx_hash, our_address)
+        else:
+            return False, "Unsupported currency or invalid hash"
+    except requests.RequestException as e:
+        return False, f"Verification service unreachable: {str(e)}"
     except Exception as e:
         return False, f"Verification service error: {str(e)}"
 
-    return False, "Unsupported currency or invalid hash"
+    if err:
+        return False, err
+    if received is None or received <= 0:
+        return False, f"This transaction did not pay our {crypto_currency} deposit address."
+
+    if not _amount_matches(received, expected_crypto, crypto_currency):
+        return False, (
+            f"Amount mismatch. This deposit requires exactly {expected_crypto} "
+            f"{crypto_currency}, but the transaction sent {received} {crypto_currency}. "
+            f"Please send the exact amount shown."
+        )
+
+    return True, f"Verified: {received} {crypto_currency} received."
+
+
+def _fetch_btc_received(tx_hash, our_address):
+    """Return (received_btc: Decimal, err: str|None) — amount paid to our BTC
+    address in this confirmed transaction."""
+    resp = requests.get(f"https://api.blockcypher.com/v1/btc/main/txs/{tx_hash}", timeout=15)
+    if resp.status_code != 200:
+        return None, "BTC transaction not found or invalid."
+    data = resp.json()
+
+    confirmations = data.get('confirmations', 0)
+    if confirmations < MIN_CONFIRMATIONS['BTC']:
+        return None, f"Transaction found but not yet confirmed (currently {confirmations} confirmation(s))."
+
+    received_sats = 0
+    for out in data.get('outputs', []):
+        if our_address in (out.get('addresses') or []):
+            received_sats += out.get('value', 0) or 0
+    return (Decimal(received_sats) / Decimal(10 ** 8)).quantize(_SATOSHI), None
+
+
+def _fetch_eth_received(tx_hash, our_address):
+    """Return (received_eth: Decimal, err: str|None)."""
+    from .models import SiteContent
+    try:
+        etherscan_key = SiteContent.objects.get(key='etherscan_api_key').value
+    except SiteContent.DoesNotExist:
+        etherscan_key = ''
+
+    base = "https://api.etherscan.io/api"
+    key_param = f"&apikey={etherscan_key}" if etherscan_key else ""
+
+    result = requests.get(
+        f"{base}?module=proxy&action=eth_getTransactionByHash&txhash={tx_hash}{key_param}",
+        timeout=15,
+    ).json().get('result')
+    if not result:
+        return None, "ETH transaction not found or invalid."
+
+    if (result.get('to') or '').lower() != our_address.lower():
+        return None, "This transaction did not pay our ETH deposit address."
+
+    # Confirm the tx succeeded and is sufficiently confirmed.
+    receipt = requests.get(
+        f"{base}?module=proxy&action=eth_getTransactionReceipt&txhash={tx_hash}{key_param}",
+        timeout=15,
+    ).json().get('result')
+    if not receipt:
+        return None, "Transaction found but not yet mined/confirmed."
+    if receipt.get('status') not in ('0x1', 1, '1'):
+        return None, "Transaction failed on-chain."
+    try:
+        tx_block = int(receipt.get('blockNumber', '0x0'), 16)
+        head = int(requests.get(
+            f"{base}?module=proxy&action=eth_blockNumber{key_param}", timeout=15
+        ).json().get('result', '0x0'), 16)
+        if head - tx_block < MIN_CONFIRMATIONS['ETH']:
+            return None, "Transaction found but not yet confirmed. Please wait a moment."
+    except Exception:
+        pass  # receipt success above still stands if confirmation count is unreadable
+
+    received_eth = Decimal(int(result.get('value', '0x0'), 16)) / Decimal(10 ** 18)
+    return received_eth.quantize(_SATOSHI), None
+
+
+def _fetch_usdt_received(tx_hash, our_address):
+    """Return (received_usdt: Decimal, err: str|None) for a TRC20 transfer."""
+    resp = requests.get(
+        f"https://apilist.tronscanapi.com/api/transaction-info?hash={tx_hash}",
+        timeout=15,
+    )
+    if resp.status_code != 200:
+        return None, "USDT (TRC20) transaction not found."
+    data = resp.json() or {}
+
+    if data.get('contractRet') and data.get('contractRet') != 'SUCCESS':
+        return None, f"USDT transaction failed on-chain (status: {data.get('contractRet')})."
+    if not data.get('confirmed', False):
+        return None, "USDT transaction found but not yet confirmed."
+
+    received = Decimal(0)
+    for t in data.get('trc20TransferInfo') or []:
+        if (t.get('symbol') or '').upper() == 'USDT' and (t.get('to_address') or '') == our_address:
+            decimals = int(t.get('decimals', 6) or 6)
+            try:
+                received += Decimal(int(t.get('amount_str', '0'))) / Decimal(10 ** decimals)
+            except (TypeError, ValueError):
+                continue
+    return received.quantize(_SATOSHI), None

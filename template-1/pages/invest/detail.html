@@ -5,7 +5,7 @@
 <head>
     {% include 'partials/seo.html' %}
     <meta charset="utf-8" />
-    <title>{{ asset.name }} | Ryder Invest</title>
+    <title>{{ asset.name }} | Fleet Share</title>
     <meta content="width=device-width, initial-scale=1" name="viewport" />
     <link href="{% static 'css/vendor/carent-wbs.webflow.shared.15fbda294.css' %}" rel="stylesheet" type="text/css" />
     <link rel="stylesheet" href="{% static 'base.css' %}">
@@ -69,7 +69,7 @@
 
             <div>
                 <div class="invest-box">
-                    <h3>Invest in this asset</h3>
+                    <h3>Buy shares in this asset</h3>
                     <p class="sub">Minimum ${{ asset.min_investment|floatformat:0|intcomma }}. Earnings accrue daily. Withdraw during the monthly window — a release fee is paid on withdrawal and shown cumulatively on your dashboard.</p>
 
                     {% if user.is_authenticated %}
@@ -96,13 +96,13 @@
                         </div>
 
                         <button type="submit" class="invest-submit" {% if asset.is_sold_out %}disabled{% endif %}>
-                            {% if asset.is_sold_out %}Fully Funded{% else %}Confirm Investment{% endif %}
+                            {% if asset.is_sold_out %}Fully Funded{% else %}Confirm Purchase{% endif %}
                         </button>
                         <p class="wallet-note">Wallet balance: <strong>${{ wallet.balance|floatformat:2|intcomma }}</strong> · <a href="{% url 'invest_deposit' %}" style="color:#e60000;">Add funds</a></p>
                     </form>
                     {% else %}
-                    <p style="color:#555; margin-bottom:18px;">Please log in to invest in this asset.</p>
-                    <a href="{% url 'login' %}?next={{ request.path }}" class="invest-submit" style="display:block; text-align:center; text-decoration:none;">Log in to Invest</a>
+                    <p style="color:#555; margin-bottom:18px;">Please log in to buy shares in this asset.</p>
+                    <a href="{% url 'login' %}?next={{ request.path }}" class="invest-submit" style="display:block; text-align:center; text-decoration:none;">Log in to Buy Shares</a>
                     {% endif %}
                 </div>
             </div>

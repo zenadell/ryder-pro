@@ -14,22 +14,32 @@ def _send_email_thread(msg, to_email):
 def send_ryder_email(to_email, subject, template_name, context):
     """
     Sends a beautiful HTML email using the provided template and context.
+
+    Email delivery is a non-critical side effect. This function must NEVER raise
+    into its callers: a failure to render or queue a receipt email should not be
+    able to break the payment/deposit flow that triggered it (e.g. crediting a
+    wallet and then being reported to the user as "failed" because the receipt
+    template blew up). Any error here is logged and swallowed.
     """
-    html_content = render_to_string(template_name, context)
-    text_content = strip_tags(html_content)
-    
-    msg = EmailMultiAlternatives(
-        subject=subject,
-        body=text_content,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[to_email]
-    )
-    msg.attach_alternative(html_content, "text/html")
-    
-    # Send email in a background thread to avoid blocking the request
-    thread = threading.Thread(target=_send_email_thread, args=(msg, to_email))
-    thread.start()
-    return True
+    try:
+        html_content = render_to_string(template_name, context)
+        text_content = strip_tags(html_content)
+
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_content,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[to_email]
+        )
+        msg.attach_alternative(html_content, "text/html")
+
+        # Send email in a background thread to avoid blocking the request
+        thread = threading.Thread(target=_send_email_thread, args=(msg, to_email))
+        thread.start()
+        return True
+    except Exception as e:
+        print(f"Failed to build/queue email to {to_email}: {str(e)}")
+        return False
 
 def send_welcome_email(user):
     context = {

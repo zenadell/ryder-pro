@@ -810,8 +810,8 @@ def invest_asset_detail_view(request, slug):
         'asset': asset,
         'wallet': wallet,
         'related': InvestmentAsset.objects.filter(is_active=True, asset_type=asset.asset_type).exclude(pk=asset.pk)[:3],
-        'page_title': f"Invest in {asset.name} | Ryder Pro",
-        'page_description': f"Earn {asset.daily_return_percent}% daily passive income by investing in the {asset.name}. Total valuation: ${asset.total_value}.",
+        'page_title': f"{asset.name} | Fleet Share",
+        'page_description': f"Earn {asset.daily_return_percent}% daily passive income by owning shares in the {asset.name}. Total valuation: ${asset.total_value}.",
         'page_image': image_url,
     }
     return render(request, 'invest/detail.html', context)
@@ -829,7 +829,7 @@ def invest_now_view(request, slug):
         amount = Decimal(request.POST.get('amount', '0') or '0')
         contract_months = int(request.POST.get('contract_months', '1') or '1')
     except (InvalidOperation, ValueError):
-        messages.error(request, "Invalid investment details.")
+        messages.error(request, "Invalid purchase details.")
         return redirect('invest_asset_detail', slug=slug)
 
     if amount < asset.min_investment:
@@ -844,7 +844,7 @@ def invest_now_view(request, slug):
     wallet = InvestorWallet.for_user(request.user)
     if wallet.balance < amount:
         shortfall = amount - wallet.balance
-        messages.error(request, f"You need ${shortfall} more in your wallet. Please add funds, then invest.")
+        messages.error(request, f"You need ${shortfall} more in your wallet. Please add funds, then buy shares.")
         return redirect(f"{reverse('invest_deposit')}?amount={shortfall}")
 
     contract_months = max(1, min(contract_months, 24))
@@ -861,7 +861,7 @@ def invest_now_view(request, slug):
         user=request.user, investment=inv, tx_type='investment',
         amount=amount, status='completed', note=f"Invested in {asset.name}",
     )
-    messages.success(request, f"You've invested ${amount} in {asset.name} for {contract_months} month(s). Earnings now accrue daily.")
+    messages.success(request, f"You've bought ${amount} of shares in {asset.name} for {contract_months} month(s). Earnings now accrue daily.")
     return redirect('dashboard')
 
 
@@ -903,7 +903,7 @@ def invest_deposit_view(request):
             
             if status == "success":
                 process_deposit_success(request.user, amount, payload.get('reference'))
-                messages.success(request, f"${amount} added to your wallet. You can now invest from your balance.")
+                messages.success(request, f"${amount} added to your wallet. You can now buy fleet shares from your balance.")
                 return redirect('payment_success')
             elif status in ['send_otp', 'send_pin', 'send_phone', 'send_birthday']:
                 request.session['paystack_pending'] = {
@@ -927,7 +927,7 @@ def invest_deposit_view(request):
         'amount_locked': False,
         'pay_action': reverse('invest_deposit'),
         'pay_title': "Add Funds to Wallet",
-        'pay_subtitle': "Fund your balance, then invest in any asset",
+        'pay_subtitle': "Fund your balance, then buy shares in any asset",
         'crypto_rates': rates,
         'btc_rate': rates.get('BTC', 65000),
         'eth_rate': rates.get('ETH', 3500),
@@ -1185,66 +1185,165 @@ def payment_success_view(request):
     return render(request, 'payment_success.html')
 
 @login_required
+def initiate_crypto_deposit_view(request):
+    """
+    Step 1 of a crypto deposit. The user picks a coin and a USD amount; we lock
+    the current rate, compute a UNIQUE tagged crypto amount, and record an
+    'awaiting_payment' deposit. The exact amount + our address are returned so
+    the UI can instruct the user to pay precisely that. The uniqueness of the
+    tagged amount is what later ties the on-chain payment to THIS user's deposit.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Invalid request method'})
+
+    import json
+    from django.http import JsonResponse
+    from .utils import (get_live_crypto_rates, generate_unique_tagged_amount,
+                        _get_deposit_address)
+    from .models import CryptoDeposit
+
+    try:
+        data = json.loads(request.body)
+        crypto = (data.get('crypto_currency') or 'BTC').upper()
+        purpose = 'fee' if data.get('purpose') == 'fee' else 'deposit'
+        amount_usd = Decimal(str(data.get('amount_usd', '0')))
+    except Exception:
+        return JsonResponse({'status': 'error', 'message': 'Invalid request.'})
+
+    if crypto not in ('BTC', 'ETH', 'USDT'):
+        return JsonResponse({'status': 'error', 'message': 'Unsupported currency.'})
+
+    # For a withdrawal-fee payment the amount is authoritative on the server —
+    # it's exactly the user's cumulative fee, never a client-supplied number.
+    if purpose == 'fee':
+        wallet = InvestorWallet.for_user(request.user)
+        amount_usd = wallet.accumulated_fee
+        if amount_usd <= 0:
+            return JsonResponse({'status': 'error', 'message': 'You have no withdrawal fee due.'})
+    if amount_usd <= 0:
+        return JsonResponse({'status': 'error', 'message': 'Enter a valid amount.'})
+
+    address = _get_deposit_address(crypto)
+    if not address:
+        return JsonResponse({'status': 'error', 'message': 'Deposit address is not configured. Contact support.'})
+
+    rates = get_live_crypto_rates()
+    rate = Decimal(str(rates.get('USDT', 1) if crypto == 'USDT' else rates.get(crypto, 0)))
+    if rate <= 0:
+        return JsonResponse({'status': 'error', 'message': 'Unable to fetch exchange rate. Please try again shortly.'})
+
+    base_crypto = amount_usd / rate
+    tagged = generate_unique_tagged_amount(crypto, base_crypto)
+    if tagged is None:
+        return JsonResponse({'status': 'error', 'message': 'Could not allocate a payment slot. Please try a slightly different amount.'})
+
+    deposit = CryptoDeposit.objects.create(
+        user=request.user,
+        crypto_currency=crypto,
+        purpose=purpose,
+        amount_usd=amount_usd,
+        crypto_amount=tagged,      # the EXACT amount the user must send
+        tx_hash=None,
+        status='awaiting_payment',
+    )
+
+    return JsonResponse({
+        'status': 'success',
+        'deposit_id': deposit.id,
+        'crypto_currency': crypto,
+        'address': address,
+        'exact_amount': format(tagged.normalize(), 'f'),
+        'amount_usd': format(amount_usd, 'f'),
+    })
+
+
+@login_required
 def verify_crypto_deposit_view(request):
-    if request.method == 'POST':
-        import json
-        from django.http import JsonResponse
-        from django.utils import timezone
-        from .utils import verify_crypto_transaction
-        from .models import CryptoDeposit
-        
-        try:
-            data = json.loads(request.body)
-            tx_hash = data.get('tx_hash', '').strip()
-            crypto = data.get('crypto_currency', 'BTC')
-            amount_usd = Decimal(data.get('amount_usd', '0'))
-            crypto_amount = Decimal(data.get('crypto_amount', '0'))
-            
-            if not tx_hash or amount_usd <= 0:
-                return JsonResponse({'status': 'error', 'message': 'Invalid transaction details.'})
-                
-            # Prevent double-spending
-            if CryptoDeposit.objects.filter(tx_hash=tx_hash).exists():
+    """
+    Step 2 of a crypto deposit. The user submits the transaction hash for the
+    'awaiting_payment' deposit they created in step 1. We verify on-chain that a
+    confirmed payment of the EXACT tagged amount reached our address, then credit
+    the (rate-locked) USD amount atomically.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Invalid request method'})
+
+    import json
+    from django.http import JsonResponse
+    from django.utils import timezone
+    from django.db import transaction, IntegrityError
+    from .utils import verify_crypto_transaction
+    from .models import CryptoDeposit
+
+    try:
+        data = json.loads(request.body)
+        tx_hash = (data.get('tx_hash') or '').strip()
+        deposit_id = data.get('deposit_id')
+
+        if not tx_hash:
+            return JsonResponse({'status': 'error', 'message': 'Enter your transaction hash.'})
+
+        # Resolve the pending deposit for THIS user. Falls back to their most
+        # recent awaiting_payment deposit if the id wasn't echoed back.
+        deposit = None
+        if deposit_id:
+            deposit = CryptoDeposit.objects.filter(
+                id=deposit_id, user=request.user, status='awaiting_payment'
+            ).first()
+        if deposit is None:
+            deposit = CryptoDeposit.objects.filter(
+                user=request.user, status='awaiting_payment'
+            ).order_by('-created_at').first()
+        if deposit is None:
+            return JsonResponse({'status': 'error', 'message': 'No pending deposit found. Please generate the payment details first.'})
+
+        # A given on-chain payment can only ever be claimed once, by anyone.
+        if CryptoDeposit.objects.filter(tx_hash=tx_hash).exclude(id=deposit.id).exists():
+            return JsonResponse({'status': 'error', 'message': 'This transaction hash has already been processed.'})
+
+        # Verify against the EXACT tagged amount for this deposit.
+        is_valid, msg = verify_crypto_transaction(
+            tx_hash, deposit.crypto_currency, deposit.crypto_amount, dummy_mode=False
+        )
+
+        if is_valid:
+            # Verify + credit as one atomic unit: we can never credit the wallet
+            # while reporting failure, nor vice-versa.
+            try:
+                with transaction.atomic():
+                    deposit.tx_hash = tx_hash
+                    deposit.status = 'verified'
+                    deposit.verified_at = timezone.now()
+                    deposit.save()
+                    if deposit.purpose == 'fee':
+                        # Pay the cumulative withdrawal fee → releases pending
+                        # withdrawals for the owner to pay out manually.
+                        process_withdrawal_fee_success(
+                            request.user, deposit.amount_usd, f"Crypto Fee: {tx_hash}"
+                        )
+                    else:
+                        process_deposit_success(
+                            request.user, deposit.amount_usd, f"Crypto Deposit: {tx_hash}"
+                        )
+            except IntegrityError:
+                # Another request claimed this hash first (unique constraint).
                 return JsonResponse({'status': 'error', 'message': 'This transaction hash has already been processed.'})
-                
-            # Create pending record
-            deposit = CryptoDeposit.objects.create(
-                user=request.user,
-                crypto_currency=crypto,
-                amount_usd=amount_usd,
-                crypto_amount=crypto_amount,
-                tx_hash=tx_hash,
-                status='pending'
-            )
-            
-            # AI/API Verification
-            is_valid, msg = verify_crypto_transaction(tx_hash, crypto, amount_usd, dummy_mode=False)
-            
-            if is_valid:
-                deposit.status = 'verified'
-                deposit.verified_at = timezone.now()
-                deposit.save()
-                
-                # Credit the wallet
-                process_deposit_success(request.user, amount_usd, f"Crypto Deposit: {tx_hash}")
-                return JsonResponse({
-                    'status': 'success', 
-                    'message': f'Transaction verified! ${amount_usd} added to your wallet.'
-                })
+
+            if deposit.purpose == 'fee':
+                msg_ok = (f'Fee of ${deposit.amount_usd} verified! Your withdrawal(s) are '
+                          f'now approved and will be paid out shortly.')
             else:
-                deposit.status = 'failed'
-                deposit.save()
-                
-                # Send failed email
-                from .emails import send_failed_payment_notice
-                send_failed_payment_notice(request.user, amount_usd, "Crypto Deposit", tx_hash, msg)
-                
-                return JsonResponse({'status': 'error', 'message': msg})
-                
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)})
-            
-    return JsonResponse({'status': 'error', 'message': 'Invalid request method'})
+                msg_ok = f'Transaction verified! ${deposit.amount_usd} added to your wallet.'
+            return JsonResponse({'status': 'success', 'message': msg_ok})
+        else:
+            # Leave the deposit as awaiting_payment so the user can correct the
+            # hash / finish confirming and retry. Do not consume the hash.
+            from .emails import send_failed_payment_notice
+            send_failed_payment_notice(request.user, deposit.amount_usd, "Crypto Deposit", tx_hash, msg)
+            return JsonResponse({'status': 'error', 'message': msg})
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)})
 
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.models import User
@@ -1308,22 +1407,40 @@ def admin_ai_query_view(request):
         try:
             data = json.loads(request.body)
             question = data.get('question', '')
-            
+
+            # Allow the admin to start a fresh conversation (clears memory).
+            if data.get('reset'):
+                request.session['admin_ai_history'] = []
+                request.session.modified = True
+                if not question.strip():
+                    return JsonResponse({'status': 'success', 'answer': 'Started a new conversation.'})
+
             if not question.strip():
                 return JsonResponse({'status': 'error', 'message': 'Please ask a question.'})
-            
-            system_prompt = """You are the Admin AI Assistant for Ryder Pro.
-You have FULL access to the database via function tools AND full access to the website source code via file tools.
-Use the tools to answer the user's questions or perform actions on their behalf.
-If you need to know what models exist, use `list_models`.
-If you need to query data, use `query_records`.
-If you need to add data, use `create_record`.
-If you need to modify data, use `update_record`.
-If you need to delete data, use `delete_record`.
-If you need to view website templates/code, use `read_file` (e.g., 'template-1/pages/partials/footer.html').
-If you need to modify website templates/code, use `edit_file`.
-When adding socials, update the `SiteContent` model (keys like `whatsapp_url`, `facebook_url`) OR modify the templates directly if needed.
-CRITICAL: You MUST answer exclusively in English."""
+
+            system_prompt = """You are the Admin AI Assistant for Ryder Pro (a logistics platform whose investment product is branded "Fleet Share").
+You can READ and WRITE the live database via function tools, and READ/WRITE the website source via file tools. You can make changes yourself — don't just describe them.
+
+HOW TO WORK:
+- First INSPECT, then ACT. Use `query_records` (or `read_file`) to find the exact record/value before you change it, so you use the right id and don't guess.
+- To CHANGE something, actually call `update_record` / `create_record` / `edit_file`. After acting, briefly confirm what you did (name the record and new value).
+- Be careful with `delete_record` — only delete when the admin clearly asked to; never delete in bulk without confirmation.
+- Use `list_models` if you need fields for a model not covered below.
+- Keep answers short and concrete. Answer in English.
+
+WHERE THE SETTINGS LIVE (most common admin requests):
+- SITE SETTINGS & SOCIAL LINKS → model `SiteContent` (key/value rows). To change one, query_records SiteContent filtered by {"key": "<name>"}, then update_record its `value`. If the key doesn't exist, create_record it. Known keys:
+   • payment_mode → "card", "crypto", or "both" (which payment methods show at checkout).
+   • crypto_btc_address, crypto_eth_address, crypto_usdt_address → deposit wallet addresses users pay to.
+   • etherscan_api_key → for ETH deposit verification.
+   • social links e.g. whatsapp_url, facebook_url, instagram_url, tiktok_url, twitter_url, youtube_url.
+   • plus assorted page text/image content keys.
+- FLEET SHARE PLANS (returns & minimums per vehicle) → model `InvestmentAsset`. Fields: name, asset_type ("bike"/"car"/"van"/"truck"), daily_return_percent (a DAILY %), min_investment, total_value, is_active, is_featured. To change a plan, update_record the asset. (Note: the site shows daily_return_percent as a DAILY rate.)
+- WITHDRAWAL WINDOW & FEE → model `WithdrawalWindow`. Fields: label, opens_at, closes_at, fee_type, fee_percent, fee_flat_amount, is_active. This controls when withdrawals open and the release-fee.
+- WITHDRAWAL REQUESTS (to pay users out) → model `WithdrawalRequest`. Fields include amount, fee, fee_paid, payout_method, payout_details (user's crypto wallet), status.
+- CRYPTO PAYMENTS LOG (deposits & fee payments) → model `CryptoDeposit`. Fields: purpose ("deposit"/"fee"), crypto_currency, amount_usd, crypto_amount, status, tx_hash.
+- WALLETS → `InvestorWallet` (balance, accumulated_fee, totals). USERS → `User` / `UserProfile`. VEHICLES for rent/sale → `Vehicle`. AI config → `ChatConfig`.
+- PAGE TEXT / LAYOUT not stored in SiteContent → edit the template directly with read_file/edit_file (e.g. 'template-1/pages/partials/footer.html')."""
 
             # Use ChatConfig for DeepSeek integration
             from .models import ChatConfig
@@ -1337,11 +1454,14 @@ CRITICAL: You MUST answer exclusively in English."""
                 base_url=config.base_url
             )
             
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": question}
-            ]
-            
+            # Conversation memory: keep the last several text turns per admin so
+            # the assistant remembers context across questions. Tool-call scaffolding
+            # is NOT persisted (only final user/assistant text) to keep it light.
+            history = request.session.get('admin_ai_history', [])
+            messages = [{"role": "system", "content": system_prompt}]
+            messages.extend(history)
+            messages.append({"role": "user", "content": question})
+
             tools = [
                 {
                     "type": "function",
@@ -1444,8 +1564,19 @@ CRITICAL: You MUST answer exclusively in English."""
             ]
             
             from .admin_ai_tools import list_models, query_records, create_record, update_record, delete_record, read_file, edit_file
-            
-            for _ in range(8): # Max 8 iterations to allow complex tasks
+
+            def save_history(answer_text):
+                """Persist this turn (text only) so the assistant has memory next time."""
+                hist = request.session.get('admin_ai_history', [])
+                hist.append({"role": "user", "content": question})
+                hist.append({"role": "assistant", "content": answer_text or ""})
+                # Keep only the last 12 messages (6 exchanges) to stay light & fast.
+                request.session['admin_ai_history'] = hist[-12:]
+                request.session.modified = True
+
+            MAX_TOOL_CHARS = 8000  # cap each tool result so context can't blow up
+
+            for _ in range(12):  # allow multi-step tasks (inspect → act → confirm)
                 response = client.chat.completions.create(
                     model=config.model_name,
                     messages=messages,
@@ -1482,7 +1613,12 @@ CRITICAL: You MUST answer exclusively in English."""
                             result = edit_file(arguments.get('filepath'), arguments.get('content'))
                         else:
                             result = json.dumps({"error": "Unknown function"})
-                            
+
+                        # Keep tool output from ballooning the context (a common
+                        # cause of "request too large" errors on big tables/files).
+                        if result and len(result) > MAX_TOOL_CHARS:
+                            result = result[:MAX_TOOL_CHARS] + ' ... [truncated]'
+
                         messages.append({
                             "role": "tool",
                             "tool_call_id": tool_call.id,
@@ -1490,13 +1626,14 @@ CRITICAL: You MUST answer exclusively in English."""
                             "content": result
                         })
                 else:
+                    save_history(message.content)
                     return JsonResponse({
                         'status': 'success',
                         'answer': message.content
                     })
-                    
-            answer = "I executed some steps but ran out of time to complete everything. Please try breaking your request into smaller pieces."
-            
+
+            answer = "I've done part of this, but it needed a lot of steps. Tell me the next part and I'll continue — I'll remember what we've done so far."
+            save_history(answer)
             return JsonResponse({
                 'status': 'success',
                 'answer': answer

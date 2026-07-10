@@ -168,7 +168,7 @@
                     <a href="/" class="nav-link w-nav-link"> Home </a>
                     <a href="/about" class="nav-link w-nav-link"> About </a>
                     <a href="{% url 'all_cars' %}" class="nav-link w-nav-link"> Browse Cars </a>
-                    <a href="{% url 'invest_marketplace' %}" class="nav-link w-nav-link"> Invest </a>
+                    <a href="{% url 'invest_marketplace' %}" class="nav-link w-nav-link"> Fleet Share </a>
                     <a href="{% url 'trade_in' %}" class="nav-link w-nav-link"> Trade-In </a>
                     
                     <div class="mobile-dropdown">
@@ -226,3 +226,54 @@
 {% endif %}
 
 {% include 'partials/chat_widget.html' %}
+
+<script>
+/* Self-contained mobile menu toggle.
+   Webflow's own nav JS handles the menu button on pages that load it. On pages
+   that include this navbar WITHOUT the Webflow bundle (payment, invest, jobs,
+   legal, checkout/success pages, etc.) the button had no click handler and
+   refused to open. This fallback binds the toggle only when Webflow is absent,
+   so both sets of pages work and neither double-binds. */
+(function () {
+    function initNavFallback() {
+        // If Webflow's nav JS is present, let it own the menu button.
+        if (window.Webflow) return;
+        var navbar = document.querySelector('.navbar.w-nav');
+        if (!navbar) return;
+        var button = navbar.querySelector('.menu-button.w-nav-button');
+        var menu = navbar.querySelector('.nav-menu.w-nav-menu');
+        if (!button || !menu) return;
+
+        var open = false;
+        function setOpen(state) {
+            open = state;
+            if (open) {
+                menu.style.display = 'flex';
+                button.classList.add('w--open');
+            } else {
+                menu.style.display = '';
+                button.classList.remove('w--open');
+            }
+        }
+
+        button.addEventListener('click', function (e) {
+            e.preventDefault();
+            setOpen(!open);
+        });
+        // Close after tapping a nav link (navigation) so it isn't left open.
+        menu.addEventListener('click', function (e) {
+            if (e.target.closest('a')) setOpen(false);
+        });
+        // Reset if the viewport grows to desktop while the menu is open.
+        window.addEventListener('resize', function () {
+            if (window.innerWidth >= 992 && open) setOpen(false);
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initNavFallback);
+    } else {
+        initNavFallback();
+    }
+})();
+</script>

@@ -29,7 +29,7 @@ TOOLS = [
     }},
     {"type": "function", "function": {
         "name": "list_investment_assets",
-        "description": "List active Ryder Invest assets (trucks/vans/bikes) with their daily return %, minimum investment, funding progress and a link to invest.",
+        "description": "List active Fleet Share assets (trucks/vans/bikes) with their daily return %, minimum stake, funding progress and a link to buy shares.",
         "parameters": {"type": "object", "properties": {
             "asset_type": {"type": "string", "enum": ["truck", "van", "bike"], "description": "Optional filter"}
         }},
@@ -53,7 +53,7 @@ TOOLS = [
     }},
     {"type": "function", "function": {
         "name": "get_my_account",
-        "description": "Get the CURRENT logged-in user's Ryder Invest summary: available balance, total invested, total earnings/profit, cumulative withdrawal fee due, and their active investments. Use when the user asks about their own profit, balance, credit, or investments.",
+        "description": "Get the CURRENT logged-in user's Fleet Share summary: available balance, total invested, total earnings/profit, cumulative withdrawal fee due, and their active shares. Use when the user asks about their own profit, balance, credit, or fleet shares.",
         "parameters": {"type": "object", "properties": {}},
     }},
     {"type": "function", "function": {
@@ -230,7 +230,7 @@ def _get_my_transactions(request, limit=10):
 
 def _start_investment(request, asset_slug, amount, months=1):
     if not _require_user(request):
-        return {"error": "The user must be logged in to invest. Share the login link and ask them to sign in."}
+        return {"error": "The user must be logged in to buy fleet shares. Share the login link and ask them to sign in."}
     a = InvestmentAsset.objects.filter(slug=asset_slug, is_active=True).first()
     if not a:
         return {"error": "That investment asset was not found."}

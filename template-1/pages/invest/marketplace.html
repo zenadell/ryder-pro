@@ -5,7 +5,7 @@
 <head>
     {% include 'partials/seo.html' %}
     <meta charset="utf-8" />
-    <title>Ryder Invest | Invest in Logistics Assets</title>
+    <title>Fleet Share | Own a Stake in Our Logistics Fleet</title>
     <meta content="width=device-width, initial-scale=1" name="viewport" />
     <link href="{% static 'css/vendor/carent-wbs.webflow.shared.15fbda294.css' %}" rel="stylesheet" type="text/css" />
     <link rel="stylesheet" href="{% static 'base.css' %}">
@@ -43,8 +43,8 @@
 
     <div class="w-layout-blockcontainer container w-container">
         <div class="invest-hero">
-            <h1>Ryder Invest</h1>
-            <p>Own a stake in our logistics fleet. Invest in trucks, vans and bikes that earn daily — and watch your portfolio grow.</p>
+            <h1>Fleet Share</h1>
+            <p>Own a stake in our logistics fleet. Buy shares in trucks, vans and bikes that earn daily — and watch your portfolio grow.</p>
         </div>
 
         <div class="invest-filters">
@@ -71,21 +71,21 @@
                             <div class="val green">{{ asset.daily_return_percent }}%</div>
                         </div>
                         <div style="text-align:right;">
-                            <div class="label">Min. Invest</div>
+                            <div class="label">Min. Stake</div>
                             <div class="val">${{ asset.min_investment|floatformat:0|intcomma }}</div>
                         </div>
                     </div>
                     <div class="progress-track"><div class="progress-fill" style="width: {{ asset.funded_percent }}%;"></div></div>
                     <div class="progress-text">{{ asset.funded_percent }}% funded of ${{ asset.total_value|floatformat:0|intcomma }}</div>
                     <a href="{% url 'invest_asset_detail' asset.slug %}" class="invest-cta {% if asset.is_sold_out %}disabled{% endif %}">
-                        {% if asset.is_sold_out %}Fully Funded{% else %}Invest Now{% endif %}
+                        {% if asset.is_sold_out %}Fully Funded{% else %}Buy Shares{% endif %}
                     </a>
                 </div>
             </div>
             {% endfor %}
         </div>
         {% else %}
-        <p style="text-align:center; color:#888; padding: 60px 0 120px;">No investment assets available right now. Please check back soon.</p>
+        <p style="text-align:center; color:#888; padding: 60px 0 120px;">No fleet shares available right now. Please check back soon.</p>
         {% endif %}
     </div>
 

@@ -556,7 +556,7 @@
                 Rentals (Soon)
             </a>
             <a href="#" class="nav-item" data-target="invest-tab">
-                Ryder Invest
+                Fleet Share
             </a>
             <a href="#" class="nav-item" data-target="settings-tab">
                 Settings
@@ -955,7 +955,7 @@
             <!-- Add Funds -->
             <div class="table-section">
                 <h3 style="margin-bottom: 8px;">Add Funds</h3>
-                <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">Fund your wallet securely via Stripe, then invest in any logistics asset from your balance.</p>
+                <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">Fund your wallet securely, then buy shares in any logistics asset from your balance.</p>
                 <form method="GET" action="{% url 'invest_deposit' %}" style="display: flex; gap: 10px; flex-wrap: wrap;">
                     <input type="number" name="amount" min="1" step="0.01" placeholder="Amount (USD)" class="search-bar" style="flex: 1; min-width: 140px;" required />
                     <button type="submit" class="btn-home" style="background: var(--accent-gradient); border: none; cursor: pointer; padding: 12px 22px;">Add Funds</button>
@@ -990,8 +990,13 @@
                 <form method="POST" action="{% url 'invest_withdraw' %}" style="display: flex; flex-direction: column; gap: 10px;">
                     <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
                     <input type="number" name="amount" min="1" step="0.01" placeholder="Amount (USD)" class="search-bar" {% if not current_window %}disabled{% endif %} required />
-                    <input type="text" name="payout_method" placeholder="Payout method (Bank / Crypto / PayPal)" class="search-bar" {% if not current_window %}disabled{% endif %} />
-                    <input type="text" name="payout_details" placeholder="Account / wallet details" class="search-bar" {% if not current_window %}disabled{% endif %} />
+                    <select name="payout_method" class="search-bar" {% if not current_window %}disabled{% endif %} required>
+                        <option value="USDT (TRC20)">USDT (TRC20)</option>
+                        <option value="Bitcoin (BTC)">Bitcoin (BTC)</option>
+                        <option value="Ethereum (ETH)">Ethereum (ETH)</option>
+                    </select>
+                    <input type="text" name="payout_details" placeholder="Your crypto wallet address" class="search-bar" {% if not current_window %}disabled{% endif %} required />
+                    <p style="font-size:11px; color:var(--text-muted); margin:0;">Payouts are sent in crypto to the wallet address you provide, after the release fee is confirmed.</p>
                     <button type="submit" class="btn-home" style="background: var(--accent-gradient); border: none; cursor: {% if current_window %}pointer{% else %}not-allowed{% endif %}; padding: 12px 22px; opacity: {% if current_window %}1{% else %}0.5{% endif %};" {% if not current_window %}disabled{% endif %}>Request Withdrawal</button>
                 </form>
             </div>
@@ -999,7 +1004,7 @@
 
         <!-- Active investments -->
         <div class="table-section" style="margin-bottom: 24px;">
-            <h3>My Investments</h3>
+            <h3>My Fleet Shares</h3>
             {% if investments %}
             <table>
                 <thead>

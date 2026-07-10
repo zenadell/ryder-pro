@@ -40,6 +40,7 @@ urlpatterns = [
     # Ryder Invest
     path('invest/', views.invest_marketplace_view, name='invest_marketplace'),
     path('invest/deposit/', views.invest_deposit_view, name='invest_deposit'),
+    path('invest/deposit/crypto/initiate/', views.initiate_crypto_deposit_view, name='initiate_crypto_deposit'),
     path('invest/deposit/crypto/verify/', views.verify_crypto_deposit_view, name='verify_crypto_deposit'),
     
     # Admin User Management

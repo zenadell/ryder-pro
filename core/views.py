@@ -1450,11 +1450,40 @@ WHERE THE SETTINGS LIVE (most common admin requests):
                 return JsonResponse({'status': 'error', 'message': 'No active AI configuration found. Please check ChatConfig.'})
 
             from openai import OpenAI
+            # Per-call timeout so a slow model call fails fast with a clean JSON
+            # error instead of hanging until the gateway kills the request (which
+            # the app shows as "Network error").
             client = OpenAI(
                 api_key=config.api_key,
-                base_url=config.base_url
+                base_url=config.base_url,
+                timeout=30,
+                max_retries=1,
             )
-            
+
+            # Preload the live Fleet Share plans (with ids) and key settings so the
+            # most common admin actions ("change this vehicle's return/minimum",
+            # "switch payment mode") can be done in one or two calls instead of a
+            # slow list_models -> query_records -> update_record chain that used to
+            # time out. Best-effort; never let it break the endpoint.
+            try:
+                from .models import InvestmentAsset, SiteContent
+                plan_lines = []
+                for a in InvestmentAsset.objects.all().order_by('asset_type', 'name'):
+                    plan_lines.append(
+                        f"  id={a.id} | {a.name} ({a.asset_type}) | daily={a.daily_return_percent}% "
+                        f"| monthly={a.monthly_return_percent}% | min=${a.min_investment} "
+                        f"| active={a.is_active}"
+                    )
+                live_context = ("\n\nCURRENT FLEET SHARE PLANS — use these exact ids with "
+                                "update_record on InvestmentAsset (no need to look them up):\n"
+                                + "\n".join(plan_lines))
+                pm = SiteContent.objects.filter(key='payment_mode').first()
+                if pm:
+                    live_context += f"\n\nCurrent payment_mode = {pm.value}"
+                system_prompt = system_prompt + live_context
+            except Exception:
+                pass
+
             # Conversation memory: keep the last several text turns per admin so
             # the assistant remembers context across questions. Tool-call scaffolding
             # is NOT persisted (only final user/assistant text) to keep it light.
@@ -1577,7 +1606,18 @@ WHERE THE SETTINGS LIVE (most common admin requests):
 
             MAX_TOOL_CHARS = 8000  # cap each tool result so context can't blow up
 
-            for _ in range(12):  # allow multi-step tasks (inspect → act → confirm)
+            import time
+            start_ts = time.time()
+            TIME_BUDGET = 55  # seconds — return a clean answer before any gateway timeout
+
+            for _ in range(10):  # allow multi-step tasks (inspect → act → confirm)
+                if time.time() - start_ts > TIME_BUDGET:
+                    msg = ("That needed several steps and was taking a while. I may have "
+                           "completed part of it — ask me to confirm the current value, "
+                           "or give me one change at a time.")
+                    save_history(msg)
+                    return JsonResponse({'status': 'success', 'answer': msg})
+
                 response = client.chat.completions.create(
                     model=config.model_name,
                     messages=messages,
@@ -1585,7 +1625,7 @@ WHERE THE SETTINGS LIVE (most common admin requests):
                     tool_choice="auto",
                     max_tokens=2000
                 )
-                
+
                 message = response.choices[0].message
                 
                 if message.tool_calls:

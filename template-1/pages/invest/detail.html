@@ -117,15 +117,18 @@
             var contract = document.getElementById('contract');
             var dailyEst = document.getElementById('dailyEst');
             var totalEst = document.getElementById('totalEst');
-            var rate = parseFloat('{{ asset.daily_return_percent }}') || 0;
+            var dailyRate = parseFloat('{{ asset.daily_return_percent }}') || 0;
+            var monthlyRate = parseFloat('{{ asset.monthly_return_percent }}') || 0;
             function fmt(n){ return '$' + n.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}); }
             function recalc(){
                 if(!amount) return;
                 var amt = parseFloat(amount.value) || 0;
                 var months = parseInt(contract.value) || 1;
-                var daily = amt * rate / 100;
-                dailyEst.textContent = fmt(daily);
-                totalEst.textContent = fmt(daily * 30 * months);
+                // Daily earning uses the daily rate; the over-contract projection
+                // uses the admin-set MONTHLY rate directly (× months) instead of
+                // re-deriving it from the daily rate.
+                dailyEst.textContent = fmt(amt * dailyRate / 100);
+                totalEst.textContent = fmt(amt * monthlyRate / 100 * months);
             }
             if(amount){ amount.addEventListener('input', recalc); contract.addEventListener('change', recalc); }
         })();

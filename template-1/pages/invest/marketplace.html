@@ -67,8 +67,9 @@
                     <h3>{{ asset.name }}</h3>
                     <div class="invest-meta">
                         <div>
-                            <div class="label">Daily Return</div>
-                            <div class="val green">{{ asset.daily_return_percent }}%</div>
+                            <div class="label">Return</div>
+                            <div class="val green">{{ asset.daily_return_percent }}%/day</div>
+                            <div class="val green" style="font-size:12px; opacity:0.85;">{{ asset.monthly_return_percent }}%/mo</div>
                         </div>
                         <div style="text-align:right;">
                             <div class="label">Min. Stake</div>

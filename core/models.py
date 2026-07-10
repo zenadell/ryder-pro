@@ -489,7 +489,8 @@ class InvestmentAsset(models.Model):
     total_value = models.DecimalField(max_digits=12, decimal_places=2, help_text="Total value of the vehicle, e.g. 120000.00")
     amount_funded = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Total amount invested by users so far")
     min_investment = models.DecimalField(max_digits=12, decimal_places=2, default=2000, help_text="Minimum amount a user can invest (starts at $2,000)")
-    daily_return_percent = models.DecimalField(max_digits=6, decimal_places=3, default=0.021, help_text="Daily earnings as a percent of the invested amount, e.g. 0.021 for ~8% APY")
+    daily_return_percent = models.DecimalField(max_digits=6, decimal_places=3, default=0.021, help_text="Daily earnings as a percent of the invested amount. THIS drives what users actually earn.")
+    monthly_return_percent = models.DecimalField(max_digits=8, decimal_places=2, default=0, help_text="Monthly return % shown to users on the plan. Independent of the daily rate — for display only; the daily rate is what actually accrues.")
 
     is_active = models.BooleanField(default=True, help_text="Show on the invest marketplace and accept new investments")
     is_featured = models.BooleanField(default=False)
@@ -523,10 +524,6 @@ class InvestmentAsset(models.Model):
     def is_sold_out(self):
         return self.amount_funded >= self.total_value
 
-    @property
-    def monthly_return_percent(self):
-        return round(self.daily_return_percent * 30, 2)
-
     def get_absolute_url(self):
         from django.urls import reverse
         return reverse('invest_asset_detail', kwargs={'slug': self.slug})
@@ -549,6 +546,7 @@ class Investment(models.Model):
     amount = models.DecimalField(max_digits=12, decimal_places=2, help_text="Principal invested")
     contract_months = models.PositiveIntegerField(default=1, help_text="Contract length chosen by the investor, in months")
     daily_return_percent = models.DecimalField(max_digits=6, decimal_places=3, help_text="Snapshot of the asset's daily rate at time of investing")
+    monthly_return_percent = models.DecimalField(max_digits=8, decimal_places=2, default=0, help_text="Snapshot of the asset's displayed monthly return at time of investing")
 
     start_date = models.DateField(default=timezone.localdate)
     end_date = models.DateField(null=True, blank=True)

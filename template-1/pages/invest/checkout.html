@@ -293,7 +293,7 @@
                         </div>
                     </div>
                     <div class="summary-divider"></div>
-                    <div class="summary-row"><span style="color:#666;">Daily Return</span><span style="font-weight:600; color:#059669;">{{ asset.daily_return_percent }}%</span></div>
+                    <div class="summary-row"><span style="color:#666;">Return</span><span style="font-weight:600; color:#059669;">{{ asset.daily_return_percent }}%/day · {{ asset.monthly_return_percent }}%/mo</span></div>
                     <div class="summary-row"><span style="color:#666;">Contract</span><span style="font-weight:600;">{{ contract_months }} month{{ contract_months|pluralize }}</span></div>
                     <div class="summary-row"><span style="color:#666;">Est. daily earning</span><span style="font-weight:600; color:#059669;">${{ daily_earning|floatformat:2|intcomma }}</span></div>
                     <div class="summary-row"><span style="color:#666;">Est. total earnings</span><span style="font-weight:600; color:#059669;">${{ projected_total|floatformat:2|intcomma }}</span></div>

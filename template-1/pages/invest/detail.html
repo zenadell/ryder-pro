@@ -56,7 +56,7 @@
                     <p class="detail-desc">{{ asset.description|default:"A revenue-generating logistics asset in the Ryder fleet. Invest and earn a daily return as it operates." }}</p>
 
                     <div class="spec-grid">
-                        <div class="spec"><div class="label">Daily Return</div><div class="val green">{{ asset.daily_return_percent }}%</div></div>
+                        <div class="spec"><div class="label">Return</div><div class="val green">{{ asset.daily_return_percent }}%/day · {{ asset.monthly_return_percent }}%/mo</div></div>
                         <div class="spec"><div class="label">~ Monthly Return</div><div class="val green">{{ asset.monthly_return_percent }}%</div></div>
                         <div class="spec"><div class="label">Asset Value</div><div class="val">${{ asset.total_value|floatformat:0|intcomma }}</div></div>
                         <div class="spec"><div class="label">Minimum Investment</div><div class="val">${{ asset.min_investment|floatformat:0|intcomma }}</div></div>

@@ -196,12 +196,14 @@ class PaymentTransactionAdmin(admin.ModelAdmin):
 # ---- Ryder Invest ----
 @admin.register(InvestmentAsset)
 class InvestmentAssetAdmin(admin.ModelAdmin):
-    list_display = ('name', 'asset_type', 'total_value', 'amount_funded', 'funded_percent', 'daily_return_percent', 'min_investment', 'is_active', 'is_featured')
+    list_display = ('name', 'asset_type', 'total_value', 'amount_funded', 'funded_percent', 'daily_return_percent', 'monthly_return_percent', 'min_investment', 'is_active', 'is_featured')
     list_filter = ('asset_type', 'is_active', 'is_featured')
-    # Return % and minimum buy-in are editable inline per asset (and per type),
-    # so the company can adjust plans anytime without code changes. New vehicles
-    # added later expose the same fields on the add/edit form automatically.
-    list_editable = ('daily_return_percent', 'min_investment', 'total_value', 'is_active', 'is_featured')
+    # Daily return, monthly return, and minimum buy-in are all editable inline per
+    # asset (and per type), so the company can adjust plans anytime without code
+    # changes. Daily and monthly are independent (daily drives actual earnings;
+    # monthly is the displayed headline). New vehicles expose the same fields on
+    # the add/edit form automatically.
+    list_editable = ('daily_return_percent', 'monthly_return_percent', 'min_investment', 'total_value', 'is_active', 'is_featured')
     search_fields = ('name', 'description')
     prepopulated_fields = {'slug': ('name',)}
 

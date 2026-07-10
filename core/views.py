@@ -852,6 +852,7 @@ def invest_now_view(request, slug):
         user=request.user, asset=asset, amount=amount,
         contract_months=contract_months,
         daily_return_percent=asset.daily_return_percent,
+        monthly_return_percent=asset.monthly_return_percent,
     )
     wallet.balance -= amount
     wallet.save(update_fields=['balance', 'updated_at'])
@@ -1435,7 +1436,7 @@ WHERE THE SETTINGS LIVE (most common admin requests):
    • etherscan_api_key → for ETH deposit verification.
    • social links e.g. whatsapp_url, facebook_url, instagram_url, tiktok_url, twitter_url, youtube_url.
    • plus assorted page text/image content keys.
-- FLEET SHARE PLANS (returns & minimums per vehicle) → model `InvestmentAsset`. Fields: name, asset_type ("bike"/"car"/"van"/"truck"), daily_return_percent (a DAILY %), min_investment, total_value, is_active, is_featured. To change a plan, update_record the asset. (Note: the site shows daily_return_percent as a DAILY rate.)
+- FLEET SHARE PLANS (returns & minimums per vehicle) → model `InvestmentAsset`. Fields: name, asset_type ("bike"/"car"/"van"/"truck"), daily_return_percent (DAILY %), monthly_return_percent (MONTHLY %), min_investment, total_value, is_active, is_featured. Each vehicle sets its OWN daily and monthly values, and they are INDEPENDENT (monthly is not auto-calculated from daily). When the admin asks to change a "return", ask or infer whether they mean daily or monthly and update the matching field. IMPORTANT: only the daily rate drives what users actually earn; monthly is a displayed headline. To change a plan, update_record the asset.
 - WITHDRAWAL WINDOW & FEE → model `WithdrawalWindow`. Fields: label, opens_at, closes_at, fee_type, fee_percent, fee_flat_amount, is_active. This controls when withdrawals open and the release-fee.
 - WITHDRAWAL REQUESTS (to pay users out) → model `WithdrawalRequest`. Fields include amount, fee, fee_paid, payout_method, payout_details (user's crypto wallet), status.
 - CRYPTO PAYMENTS LOG (deposits & fee payments) → model `CryptoDeposit`. Fields: purpose ("deposit"/"fee"), crypto_currency, amount_usd, crypto_amount, status, tx_hash.

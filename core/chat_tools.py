@@ -260,6 +260,7 @@ def _start_investment(request, asset_slug, amount, months=1):
     inv = Investment.objects.create(
         user=request.user, asset=a, amount=amt, contract_months=months,
         daily_return_percent=a.daily_return_percent,
+        monthly_return_percent=a.monthly_return_percent,
     )
     wallet.balance -= amt
     wallet.save(update_fields=['balance', 'updated_at'])

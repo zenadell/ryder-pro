@@ -1011,7 +1011,7 @@
                     <tr>
                         <th>Asset</th>
                         <th>Invested</th>
-                        <th>Daily Rate</th>
+                        <th>Return (day / mo)</th>
                         <th>Earnings</th>
                         <th>Contract</th>
                         <th>Matures</th>
@@ -1023,7 +1023,7 @@
                     <tr>
                         <td style="font-weight: 500;">{{ inv.asset.name }}</td>
                         <td>${{ inv.amount|floatformat:2|intcomma }}</td>
-                        <td>{{ inv.daily_return_percent }}%</td>
+                        <td>{{ inv.daily_return_percent }}% / {{ inv.monthly_return_percent }}%</td>
                         <td style="color: var(--status-delivered); font-weight: 600;">${{ inv.accrued_earnings|floatformat:2|intcomma }}</td>
                         <td>{{ inv.contract_months }} mo</td>
                         <td>{{ inv.end_date|date:"M j, Y" }}</td>

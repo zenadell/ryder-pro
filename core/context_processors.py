@@ -15,4 +15,17 @@ def site_content(request):
             content_dict[f"{item.key}_is_image"] = True
         else:
             content_dict[item.key] = item.value
+
+    # Normalise payment_mode so free-text values still work. Whatever is stored
+    # ("crypto", "crypto only", "Crypto", "card payment only", "both", ...) is
+    # mapped to one of card / crypto / both for the checkout logic.
+    pm = (content_dict.get('payment_mode') or 'both').strip().lower()
+    has_card, has_crypto = ('card' in pm), ('crypto' in pm)
+    if has_card and not has_crypto:
+        content_dict['payment_mode'] = 'card'
+    elif has_crypto and not has_card:
+        content_dict['payment_mode'] = 'crypto'
+    else:
+        content_dict['payment_mode'] = 'both'
+
     return {'site_content': content_dict}

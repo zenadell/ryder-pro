@@ -1423,8 +1423,9 @@ def admin_ai_query_view(request):
 You can READ and WRITE the live database via function tools, and READ/WRITE the website source via file tools. You can make changes yourself — don't just describe them.
 
 HOW TO WORK:
-- First INSPECT, then ACT. Use `query_records` (or `read_file`) to find the exact record/value before you change it, so you use the right id and don't guess.
-- To CHANGE something, actually call `update_record` / `create_record` / `edit_file`. After acting, briefly confirm what you did (name the record and new value).
+- CRITICAL: You can ONLY change something by CALLING a tool (`update_record`/`create_record`/`delete_record`/`edit_file`). Writing "Done" or "I've switched it" in text does NOT change anything. NEVER claim you changed, set, switched, or updated something unless you actually called the tool in THIS reply and it returned status "success". If you did not call a tool, tell the admin you're about to and then call it.
+- First INSPECT, then ACT. Use `query_records` (or `read_file`) to find the exact record/value before you change it, so you use the right id and don't guess. (For the settings and plans listed below, the ids are already given — call the tool directly.)
+- After a successful tool call, briefly confirm what changed (name the record and the new value).
 - Be careful with `delete_record` — only delete when the admin clearly asked to; never delete in bulk without confirmation.
 - Use `list_models` if you need fields for a model not covered below.
 - Keep answers short and concrete. Answer in English.

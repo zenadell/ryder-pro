@@ -295,7 +295,7 @@ def financing_apply_view(request, slug):
             application.save()
             
             if request.user.is_authenticated:
-                send_application_received(request.user, "Vehicle Financing", f"Vehicle: {vehicle.brand} {vehicle.title}")
+                send_application_received(request.user, "Vehicle Financing", f"Vehicle: {vehicle.make} {vehicle.model}")
                 
             messages.success(request, 'Your application has been submitted successfully!')
             return redirect('financing_success', slug=vehicle.slug)
@@ -357,7 +357,7 @@ def trade_in_view(request):
             trade_in.save()
             
             if request.user.is_authenticated:
-                send_application_received(request.user, "Vehicle Trade-In", f"Proposed Vehicle: {trade_in.brand} {trade_in.model} ({trade_in.year})")
+                send_application_received(request.user, "Vehicle Trade-In", f"Proposed Vehicle: {trade_in.make} {trade_in.model} ({trade_in.year})")
                 
             messages.success(request, 'Your trade-in request has been submitted successfully!')
             return redirect('trade_in_success')
@@ -389,7 +389,7 @@ def rental_apply_view(request, slug):
             rental.save()
             
             if request.user.is_authenticated:
-                send_application_received(request.user, "Vehicle Rental", f"Vehicle: {vehicle.brand} {vehicle.title} | Duration: {days} days")
+                send_application_received(request.user, "Vehicle Rental", f"Vehicle: {vehicle.make} {vehicle.model} | Duration: {days} days")
             
             return redirect('rental_checkout', id=rental.id)
     else:

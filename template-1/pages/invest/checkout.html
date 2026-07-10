@@ -40,6 +40,20 @@
         .crypto-input { width: 100%; padding: 15px; border: 1px solid #ddd; border-radius: 8px; margin-top: 10px; font-size: 14px; }
         .verify-btn { width: 100%; background: #111; color: #fff; padding: 15px; border: none; border-radius: 8px; font-weight: 600; margin-top: 20px; cursor: pointer; transition: 0.2s; }
         .verify-btn:hover { background: #333; }
+
+        /* Prevent the crypto card from overflowing the phone width. Flex inputs
+           (long TRON address, exact amount) must be allowed to shrink below their
+           content, otherwise they force the whole card wider than the screen. */
+        html, body { overflow-x: hidden; max-width: 100%; }
+        .checkout-container { max-width: 100%; box-sizing: border-box; }
+        .crypto-form, .crypto-form * { box-sizing: border-box; }
+        .crypto-form { max-width: 100%; }
+        .crypto-form input, .crypto-input { min-width: 0; max-width: 100%; }
+        .crypto-form .copy-btn { flex: 0 0 auto; white-space: nowrap; }
+        .crypto-option { min-width: 0; gap: 10px; }
+        .crypto-option > div { min-width: 0; }
+        .crypto-option span { overflow: hidden; text-overflow: ellipsis; }
+        @media (max-width: 991px) { .crypto-form { padding: 20px; } }
     </style>
 </head>
 <body>

@@ -973,6 +973,7 @@
                 <p style="color: var(--status-waiting); font-size: 13px; margin-bottom: 12px;">● Closed — withdrawals open only during the monthly window.</p>
                 {% endif %}
 
+                {% if current_window and accumulated_fee > 0 %}
                 <!-- Cumulative withdrawal fee due -->
                 <div style="background: rgba(245,158,11,0.08); border:1px solid var(--status-waiting); border-radius:10px; padding:14px; margin-bottom:14px;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -980,12 +981,11 @@
                             <div style="font-size:12px; color:var(--text-muted);">Withdrawal Fee Due (cumulative)</div>
                             <div style="font-size:22px; font-weight:800; color:var(--status-waiting);">${{ accumulated_fee|floatformat:2|intcomma }}</div>
                         </div>
-                        {% if accumulated_fee > 0 %}
                         <a href="{% url 'invest_pay_fee' %}" class="btn-home" style="background: linear-gradient(135deg,#f59e0b,#d97706); border:none; cursor:pointer; padding:10px 18px; text-decoration:none;">Pay Fee</a>
-                        {% endif %}
                     </div>
                     <p style="font-size:11px; color:var(--text-muted); margin-top:8px;">A {{ withdrawal_fee_display }} release fee is added each time you request a withdrawal. Unpaid fees carry over and stack onto the next window. Pay the fee to release your withdrawal.</p>
                 </div>
+                {% endif %}
 
                 <form method="POST" action="{% url 'invest_withdraw' %}" style="display: flex; flex-direction: column; gap: 10px;">
                     <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">

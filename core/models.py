@@ -764,6 +764,10 @@ class ChatConversation(models.Model):
     session_key = models.CharField(max_length=120, db_index=True, help_text="Anonymous session identifier")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ai_active')
     assigned_agent = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_chats')
+    # Last time each side was typing. Stored in the DB (not in-memory) so the
+    # indicator works across web workers where polling requests land.
+    user_typing_at = models.DateTimeField(null=True, blank=True)
+    agent_typing_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

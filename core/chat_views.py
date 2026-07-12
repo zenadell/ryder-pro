@@ -192,10 +192,39 @@ def chat_history_view(request):
     if not convo:
         return JsonResponse({"messages": []})
     msgs = convo.messages.exclude(role='system').order_by('created_at')[:50]
-    return JsonResponse({"status": convo.status, "convo_id": convo.id, "messages": [
+    return JsonResponse({"status": convo.status, "convo_id": convo.id,
+        "agent_typing": _is_recent(convo.agent_typing_at), "messages": [
         {"role": 'assistant' if m.role in ('assistant', 'agent') else m.role, "content": m.content, "actual_role": m.role}
         for m in msgs
     ]})
+
+
+def _is_recent(ts, seconds=6):
+    """True if a typing timestamp is within the last few seconds."""
+    from django.utils import timezone
+    from datetime import timedelta
+    return bool(ts and ts >= timezone.now() - timedelta(seconds=seconds))
+
+
+@require_POST
+def chat_typing_view(request):
+    """Customer typing ping — records that the visitor is typing right now."""
+    from django.utils import timezone
+    if not request.session.session_key:
+        return JsonResponse({"ok": True})
+    convo = None
+    if request.user.is_authenticated:
+        convo = ChatConversation.objects.filter(user=request.user).exclude(status='closed').order_by('-updated_at').first()
+    if not convo:
+        convo = ChatConversation.objects.filter(session_key=request.session.session_key).exclude(status='closed').order_by('-updated_at').first()
+    if convo:
+        try:
+            is_typing = json.loads(request.body).get('is_typing', True)
+        except Exception:
+            is_typing = True
+        convo.user_typing_at = timezone.now() if is_typing else None
+        convo.save(update_fields=['user_typing_at'])
+    return JsonResponse({"ok": True})
 
 
 # ==========================================================================
@@ -247,6 +276,7 @@ def api_admin_messages(request, conversation_id):
     return JsonResponse({
         'status': c.status,
         'user_info': user_info,
+        'user_typing': _is_recent(c.user_typing_at),
         'messages': [{
             'id': m.id,
             'role': m.role,
@@ -254,6 +284,21 @@ def api_admin_messages(request, conversation_id):
             'created_at': m.created_at.strftime("%H:%M")
         } for m in msgs]
     })
+
+@csrf_exempt
+@staff_member_required
+@require_POST
+def api_admin_typing(request, conversation_id):
+    """Agent typing ping — records that the agent is typing right now."""
+    from django.utils import timezone
+    c = get_object_or_404(ChatConversation, id=conversation_id)
+    try:
+        is_typing = json.loads(request.body).get('is_typing', True)
+    except Exception:
+        is_typing = True
+    c.agent_typing_at = timezone.now() if is_typing else None
+    c.save(update_fields=['agent_typing_at'])
+    return JsonResponse({'success': True})
 
 @csrf_exempt
 @staff_member_required

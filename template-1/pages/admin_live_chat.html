@@ -360,8 +360,10 @@
   <script>
     let activeConvoId = null;
     let convoPoll = null;
+    let msgPoll = null;
     let chatSocket = null;
     let typingTimeout = null;
+    let lastRenderedCount = -1;   // message count last painted, to avoid needless re-renders
 
     function goBackToList() {
       document.body.classList.remove('chat-active');
@@ -406,24 +408,8 @@
       // Update UI selection
       document.querySelectorAll('.convo-item').forEach(el => el.classList.remove('active'));
       
+      lastRenderedCount = -1;   // force a fresh render for the newly opened chat
       loadMessages();
-      
-      if (chatSocket) chatSocket.close();
-      const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
-      chatSocket = new WebSocket(`${wsScheme}://${window.location.host}/ws/chat/${activeConvoId}/`);
-      
-      chatSocket.onmessage = function(e) {
-        const data = JSON.parse(e.data);
-        if (data.type === 'message') {
-          renderSingleMessage(data);
-        } else if (data.type === 'typing') {
-          if (data.role === 'user') {
-            const ind = document.getElementById('typing-indicator');
-            ind.style.display = data.is_typing ? 'block' : 'none';
-          }
-        }
-      };
-
       loadConversations(); // highlight active
     }
 
@@ -448,21 +434,24 @@
         const res = await fetch(`/admin-chat/api/messages/${activeConvoId}/`);
         const data = await res.json();
         
-        // Render messages
+        // Render messages only when the count changed (avoids flicker while polling).
         const history = document.getElementById('chat-history');
-        const wasScrolledToBottom = history.scrollHeight - history.clientHeight <= history.scrollTop + 10;
-        
-        history.innerHTML = '';
-        data.messages.forEach(m => {
-          const div = document.createElement('div');
-          div.className = 'message ' + (m.role === 'user' ? 'msg-user' : (m.role === 'agent' ? 'msg-agent' : 'msg-ai'));
-          div.innerHTML = `<div>${m.content.replace(/\\n/g, '<br>')}</div><div style="font-size:0.7em; opacity:0.7; margin-top:5px; text-align:right;">${m.created_at}</div>`;
-          history.appendChild(div);
-        });
-        
-        if (wasScrolledToBottom) {
-          history.scrollTop = history.scrollHeight;
+        if (data.messages.length !== lastRenderedCount) {
+          const wasScrolledToBottom = history.scrollHeight - history.clientHeight <= history.scrollTop + 10;
+          history.innerHTML = '';
+          data.messages.forEach(m => {
+            const div = document.createElement('div');
+            div.className = 'message ' + (m.role === 'user' ? 'msg-user' : (m.role === 'agent' ? 'msg-agent' : 'msg-ai'));
+            div.innerHTML = `<div>${m.content.replace(/\\n/g, '<br>')}</div><div style="font-size:0.7em; opacity:0.7; margin-top:5px; text-align:right;">${m.created_at}</div>`;
+            history.appendChild(div);
+          });
+          lastRenderedCount = data.messages.length;
+          if (wasScrolledToBottom) history.scrollTop = history.scrollHeight;
         }
+
+        // Customer typing indicator (polled from the server).
+        const typingInd = document.getElementById('typing-indicator');
+        if (typingInd) typingInd.style.display = data.user_typing ? 'block' : 'none';
 
         // Render context panel
         document.getElementById('ctx-email').innerText = data.user_info.email || 'Guest';
@@ -494,17 +483,33 @@
       const text = input.value.trim();
       if (!text) return;
       
+      const convoAtSend = activeConvoId;
       input.value = '';
-      if (chatSocket) chatSocket.send(JSON.stringify({type: 'typing', role: 'agent', is_typing: false}));
-      
+      sendAgentTyping(false);
+
+      // Optimistic render so the agent sees their own message instantly; the
+      // next poll reconciles it with the saved version from the server.
+      renderSingleMessage({ role: 'agent', message: text, created_at: '' });
+
       try {
-        await fetch(`/admin-chat/api/send/${activeConvoId}/`, {
+        await fetch(`/admin-chat/api/send/${convoAtSend}/`, {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({message: text})
         });
+        if (convoAtSend === activeConvoId) { loadMessages(); }
+        loadConversations();
       } catch(e) { console.error(e); }
       input.focus();
+    }
+
+    // Agent typing ping (DB-backed, so it survives across workers).
+    function sendAgentTyping(isTyping) {
+      if (!activeConvoId) return;
+      fetch(`/admin-chat/api/typing/${activeConvoId}/`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ is_typing: !!isTyping })
+      }).catch(function(){});
     }
 
     // Input Enter key binding
@@ -514,13 +519,11 @@
         sendMessage();
       }
     });
-    
+
     inputEl.addEventListener('input', function(e) {
-      if (chatSocket) chatSocket.send(JSON.stringify({type: 'typing', role: 'agent', is_typing: true}));
+      sendAgentTyping(true);
       clearTimeout(typingTimeout);
-      typingTimeout = setTimeout(() => {
-        if (chatSocket) chatSocket.send(JSON.stringify({type: 'typing', role: 'agent', is_typing: false}));
-      }, 2000);
+      typingTimeout = setTimeout(function(){ sendAgentTyping(false); }, 2500);
     });
 
     // Take over
@@ -563,9 +566,12 @@
       if (panel) panel.classList.toggle('mobile-open');
     }
 
-    // Start polling
+    // Start polling: the conversation list every 5s, and the OPEN conversation's
+    // messages + typing every 3s (this is what makes the agent see new customer
+    // messages live without reopening the app).
     loadConversations();
     convoPoll = setInterval(loadConversations, 5000);
+    msgPoll = setInterval(function(){ if (activeConvoId) loadMessages(); }, 3000);
   </script>
 </body>
 </html>

@@ -55,12 +55,14 @@ urlpatterns = [
     # Ryder AI Assistant
     path('chat/send/', chat_views.chat_send_view, name='chat_send'),
     path('chat/history/', chat_views.chat_history_view, name='chat_history'),
+    path('chat/typing/', chat_views.chat_typing_view, name='chat_typing'),
     
     # Admin Live Chat Dashboard
     path('admin-chat/', chat_views.admin_live_chat_view, name='admin_live_chat'),
     path('admin-chat/api/conversations/', chat_views.api_admin_conversations, name='api_admin_conversations'),
     path('admin-chat/api/messages/<int:conversation_id>/', chat_views.api_admin_messages, name='api_admin_messages'),
     path('admin-chat/api/send/<int:conversation_id>/', chat_views.api_admin_send_message, name='api_admin_send_message'),
+    path('admin-chat/api/typing/<int:conversation_id>/', chat_views.api_admin_typing, name='api_admin_typing'),
     path('admin-chat/api/take-over/<int:conversation_id>/', chat_views.api_admin_take_over, name='api_admin_take_over'),
     path('admin-chat/api/hand-back/<int:conversation_id>/', chat_views.api_admin_hand_back, name='api_admin_hand_back'),
     path('admin-chat/api/close/<int:conversation_id>/', chat_views.api_admin_close, name='api_admin_close'),

@@ -146,27 +146,26 @@
   let lastMsgCount = 0;
   let currentChatStatus = 'ai_active';
 
-  function initWebSocket(convoId) {
-    if (chatSocket) chatSocket.close();
-    const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
-    chatSocket = new WebSocket(`${wsScheme}://${window.location.host}/ws/chat/${convoId}/`);
-    
-    chatSocket.onmessage = function(e) {
-      const data = JSON.parse(e.data);
-      if (data.type === 'message') {
-        if (data.role !== 'user') {
-          showTyping(false);
-          let lastMsg = typing.previousElementSibling;
-          if (lastMsg && lastMsg.innerText.includes(data.message.substring(0, 20))) return;
-          add('bot', data.message, data.role);
-          lastMsgCount++;
-        }
-      } else if (data.type === 'typing') {
-        if (data.role !== 'user') {
-          showTyping(data.is_typing);
-        }
-      }
-    };
+  // Real-time is done via polling (WebSockets aren't reliable across the
+  // server's workers). Kept as a no-op so existing call sites are harmless.
+  function initWebSocket(convoId) {}
+
+  let pollTimer = null;
+  function startPolling() {
+    if (pollTimer) return;
+    pollTimer = setInterval(fetchHistory, 3000);
+  }
+  function stopPolling() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  }
+
+  let typingPingTimeout = null;
+  function sendTypingPing(isTyping) {
+    if (currentChatStatus !== 'human_active') return;  // only matters with an agent
+    fetch('{% url "chat_typing" %}', {
+      method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
+      body: JSON.stringify({ is_typing: !!isTyping })
+    }).catch(function(){});
   }
 
   function handleHistoryResponse(d) {
@@ -182,14 +181,12 @@
       currentChatStatus = 'human_active';
       document.querySelector('.ryai-head h4').innerText = "Ryder Support";
       document.querySelector('.ryai-head p').innerHTML = "<i></i> Connected to Human Agent";
+      // Show the agent's typing indicator (polled from the server).
+      showTyping(!!d.agent_typing);
     } else {
       currentChatStatus = 'ai_active';
       document.querySelector('.ryai-head h4').innerText = "Ryder Assistant";
       document.querySelector('.ryai-head p').innerHTML = "<i></i> Online — ask me anything";
-    }
-
-    if (d.convo_id && !chatSocket) {
-      initWebSocket(d.convo_id);
     }
   }
 
@@ -202,11 +199,13 @@
     panel.classList.add('open'); input.focus();
     if(!loaded){
       loaded = true;
-      fetchHistory();
     }
+    fetchHistory();
+    startPolling();
   }
-  function closePanel(){ 
-    panel.classList.remove('open'); 
+  function closePanel(){
+    panel.classList.remove('open');
+    stopPolling();
   }
 
   function sendMsg(text){
@@ -218,8 +217,8 @@
     }
     
     if(chips) chips.style.display='none';
-    if(chatSocket) chatSocket.send(JSON.stringify({type: 'typing', role: 'user', is_typing: false}));
-    
+    sendTypingPing(false);
+
     fetch('{% url "chat_send" %}', {
       method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},
       body: JSON.stringify({message:text})
@@ -260,13 +259,9 @@
   });
   
   input.addEventListener('input', function(e) {
-    if(chatSocket) {
-      chatSocket.send(JSON.stringify({type: 'typing', role: 'user', is_typing: true}));
-      clearTimeout(typingTimeout);
-      typingTimeout = setTimeout(() => {
-        if (chatSocket) chatSocket.send(JSON.stringify({type: 'typing', role: 'user', is_typing: false}));
-      }, 2000);
-    }
+    sendTypingPing(true);
+    clearTimeout(typingPingTimeout);
+    typingPingTimeout = setTimeout(function(){ sendTypingPing(false); }, 2500);
   });
   if(chips) chips.addEventListener('click', function(e){ if(e.target.classList.contains('ryai-chip')) sendMsg(e.target.getAttribute('data-q')); });
 })();

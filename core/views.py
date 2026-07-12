@@ -533,22 +533,29 @@ def customer_dashboard_view(request):
     chart_data = []
     today = timezone.now().date()
     
+    # start_date / end_date are DateFields (already date objects); tolerate any
+    # legacy datetime values too. (Calling .date() on a date raised the 500.)
+    def _as_date(x):
+        return x.date() if hasattr(x, 'date') else x
+
     # Calculate exact historical growth based on active investments
     for i in range(14, -1, -1):
         d = today - timedelta(days=i)
         chart_labels.append(d.strftime('%b %d'))
-        
+
         day_total = Decimal('0.00')
         for inv in active_investments:
-            if inv.start_date and inv.start_date.date() <= d:
-                days_active = (d - inv.start_date.date()).days
+            sd = _as_date(inv.start_date) if inv.start_date else None
+            ed = _as_date(inv.end_date) if inv.end_date else None
+            if sd and sd <= d:
+                days_active = (d - sd).days
                 # Cap at contract end date if applicable
-                if inv.end_date and d > inv.end_date.date():
-                    days_active = (inv.end_date.date() - inv.start_date.date()).days
-                    
+                if ed and d > ed:
+                    days_active = (ed - sd).days
+
                 earnings = inv.daily_earning * days_active
                 day_total += inv.amount + earnings
-                
+
         chart_data.append(round(float(day_total), 2))
     
     if float(total_invested + total_accrued) == 0:

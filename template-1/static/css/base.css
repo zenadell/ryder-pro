@@ -26,6 +26,14 @@ body[style*="background"][style*="#1"],
     color-scheme: dark;
 }
 
+/* Ensure all text inside dark containers is white */
+.glass-panel,
+.glass-panel h1, .glass-panel h2, .glass-panel h3,
+.glass-panel h4, .glass-panel h5, .glass-panel h6,
+.glass-panel p, .glass-panel label, .glass-panel span {
+    color: #fff;
+}
+
 /* Direct fix: any input/textarea/select sitting inside a dark
    container (identified by common dark-page wrappers) gets
    light text.  The selectors are intentionally narrow so they

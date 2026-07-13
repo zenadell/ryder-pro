@@ -11,3 +11,51 @@
     100% { background-position: -200% 0; }
 }
 
+/* ── Dark-page input fix ──────────────────────────────────
+   Pages with dark backgrounds (dashboard, rentals, financing,
+   trade-in, etc.) render .form-input / .w-input with the
+   Webflow default color:#333, making typed text invisible.
+   This override ensures text is always white on dark surfaces
+   without affecting light-themed pages (contact, etc.).       */
+
+body[style*="background"][style*="#0"],
+body[style*="background"][style*="#1"],
+.dark-page,
+.page-wrapper[style*="background"][style*="#0"],
+.page-wrapper[style*="background"][style*="#1"] {
+    color-scheme: dark;
+}
+
+/* Direct fix: any input/textarea/select sitting inside a dark
+   container (identified by common dark-page wrappers) gets
+   light text.  The selectors are intentionally narrow so they
+   cannot bleed into light-themed pages.                        */
+
+.glass-panel input,
+.glass-panel textarea,
+.glass-panel select,
+.table-section input,
+.table-section textarea,
+.table-section select,
+[style*="background"][style*="rgba(0"] input,
+[style*="background"][style*="rgba(0"] textarea,
+[style*="background"][style*="rgba(0"] select {
+    color: #fff !important;
+    color-scheme: dark;
+}
+
+.glass-panel input::placeholder,
+.glass-panel textarea::placeholder,
+.table-section input::placeholder,
+.table-section textarea::placeholder {
+    color: rgba(255, 255, 255, 0.45) !important;
+}
+
+.glass-panel input:focus,
+.glass-panel textarea:focus,
+.glass-panel select:focus,
+.table-section input:focus,
+.table-section textarea:focus,
+.table-section select:focus {
+    color: #fff !important;
+}

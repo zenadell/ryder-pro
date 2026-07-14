@@ -1,4 +1,5 @@
 {% load static %}
+{% load humanize %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -24,7 +25,6 @@
         .card-input__label { color: #111 !important; }
         .card-input__input { border: 1px solid #ddd !important; color: #111 !important; }
         .card-item__info { color: #fff !important; }
-        @media (max-width: 991px) { .checkout-container { grid-template-columns: 1fr; } }
         
         .summary-card {
             background: #fff;
@@ -37,6 +37,33 @@
         .summary-row { display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 15px; }
         .summary-row.total { border-top: 1px solid rgba(0,0,0,0.1); padding-top: 20px; margin-top: 20px; font-size: 20px; font-weight: 700; }
         .summary-divider { height: 1px; background: rgba(0,0,0,0.1); margin: 20px 0; }
+
+        /* Payment mode tabs & crypto form */
+        .payment-tabs { display: flex; gap: 10px; margin-bottom: 25px; background: rgba(0,0,0,0.04); padding: 5px; border-radius: 12px; }
+        .payment-tab { flex: 1; padding: 12px; text-align: center; border-radius: 8px; cursor: pointer; font-weight: 600; color: rgba(0,0,0,0.5); transition: all 0.2s; }
+        .payment-tab.active { background: #fff; color: #111; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .crypto-form { display: none; background: #fff; color: #111; border-radius: 20px; padding: 30px; box-shadow: 0 20px 40px -14px rgba(0,0,0,0.1); }
+        .crypto-form.active { display: block; }
+        .atm-wrapper { display: block; }
+        .atm-wrapper.hidden { display: none !important; }
+        .crypto-option { padding: 15px; border: 1px solid #eee; border-radius: 12px; margin-bottom: 15px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: 0.2s; }
+        .crypto-option:hover { border-color: #cc0000; background: #fff5f5; }
+        .crypto-option.selected { border-color: #cc0000; background: #ffeaeb; border-width: 2px; }
+        .copy-btn { background: #111; color: #fff; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+        .crypto-input { width: 100%; padding: 15px; border: 1px solid #ddd; border-radius: 8px; margin-top: 10px; font-size: 14px; }
+        .verify-btn { width: 100%; background: #111; color: #fff; padding: 15px; border: none; border-radius: 8px; font-weight: 600; margin-top: 20px; cursor: pointer; transition: 0.2s; }
+        .verify-btn:hover { background: #333; }
+
+        /* Prevent crypto card overflow on mobile */
+        html, body { overflow-x: hidden; max-width: 100%; }
+        .crypto-form, .crypto-form * { box-sizing: border-box; }
+        .crypto-form { max-width: 100%; }
+        .crypto-form input, .crypto-input { min-width: 0; max-width: 100%; }
+        .crypto-form .copy-btn { flex: 0 0 auto; white-space: nowrap; }
+        .crypto-option { min-width: 0; gap: 10px; }
+        .crypto-option > div { min-width: 0; }
+        .crypto-option span { overflow: hidden; text-overflow: ellipsis; }
+        @media (max-width: 991px) { .crypto-form { padding: 20px; } }
     </style>
 </head>
 <body>
@@ -44,11 +71,24 @@
     
     <div style="padding-top: 120px; padding-bottom: 80px;">
         <div class="checkout-container">
-            <!-- Left Side: Payment Form (Vue App) -->
+            <!-- Left Side: Payment Form -->
             <div>
                 <h3 style="font-size: 28px; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.5px;">Payment Details</h3>
-                <p style="color: rgba(255,255,255,0.6); margin-bottom: 30px;">Process your installment payment securely.</p>
-                    
+                <p style="color: #666; margin-bottom: 25px;">Process your installment payment securely.</p>
+
+                {% comment %}
+                  payment_mode (SiteContent key 'payment_mode'): 'card', 'crypto', or 'both'.
+                {% endcomment %}
+                <div class="payment-tabs" {% if site_content.payment_mode == 'card' or site_content.payment_mode == 'crypto' %}style="display:none;"{% endif %}>
+                    {% if site_content.payment_mode != 'crypto' %}
+                    <div class="payment-tab active" id="tab-card" onclick="switchPayment('card')">Credit Card</div>
+                    {% endif %}
+                    {% if site_content.payment_mode != 'card' %}
+                    <div class="payment-tab" id="tab-crypto" onclick="switchPayment('crypto')">Crypto Transfer</div>
+                    {% endif %}
+                </div>
+
+                <!-- ═══ Card Payment Form (Vue ATM app) ═══ -->
                 <div class="atm-wrapper" id="app">
                     <div class="card-form">
                       <div class="card-list">
@@ -232,6 +272,77 @@
                       </div>
                     </div>
                 </div>
+
+                <!-- ═══ Crypto Payment Form ═══ -->
+                <div class="crypto-form" id="cryptoApp">
+                    <h4 style="font-weight: 700; font-size: 20px; margin-bottom: 5px;">Automated Crypto Payment</h4>
+                    <p style="color: #666; font-size: 13px; margin-bottom: 25px;">Send the exact amount to one of our wallets. Our system will automatically verify your transaction.</p>
+
+                    <div class="crypto-option selected" onclick="selectCrypto('BTC')" id="opt-BTC">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <img src="https://cryptologos.cc/logos/bitcoin-btc-logo.svg?v=029" style="width:24px;">
+                            <span style="font-weight:600;">Bitcoin (BTC)</span>
+                        </div>
+                        <div style="text-align:right;">
+                            <span style="font-weight:700;" id="amt-BTC">0.00000000</span><br>
+                            <span style="font-size:11px; color:#888;">1 BTC = $<span id="rate-BTC">{{ btc_rate|intcomma }}</span></span>
+                        </div>
+                    </div>
+
+                    <div class="crypto-option" onclick="selectCrypto('ETH')" id="opt-ETH">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <img src="https://cryptologos.cc/logos/ethereum-eth-logo.svg?v=029" style="width:24px;">
+                            <span style="font-weight:600;">Ethereum (ETH)</span>
+                        </div>
+                        <div style="text-align:right;">
+                            <span style="font-weight:700;" id="amt-ETH">0.00000000</span><br>
+                            <span style="font-size:11px; color:#888;">1 ETH = $<span id="rate-ETH">{{ eth_rate|intcomma }}</span></span>
+                        </div>
+                    </div>
+
+                    <div class="crypto-option" onclick="selectCrypto('USDT')" id="opt-USDT">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <img src="https://cryptologos.cc/logos/tether-usdt-logo.svg?v=029" style="width:24px;">
+                            <span style="font-weight:600;">Tether (USDT TRC20)</span>
+                        </div>
+                        <div style="text-align:right;">
+                            <span style="font-weight:700;" id="amt-USDT">0.00</span><br>
+                            <span style="font-size:11px; color:#888;">1 USDT = $1.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Step 1: generate payment -->
+                    <div id="cryptoStep1" style="margin-top: 20px;">
+                        <button class="verify-btn" type="button" onclick="generatePayment()" id="genBtn">Generate Payment Instructions</button>
+                        <p style="font-size:12px; color:#888; margin-top:10px;">Enter your amount above, then generate your payment details. We give you an <strong>exact</strong> amount to send — this unique amount is how we automatically match the payment to your account.</p>
+                    </div>
+
+                    <!-- Step 2: verify -->
+                    <div id="cryptoStep2" style="display:none; margin-top: 20px;">
+                        <div style="background:#fff8e1; border:1px solid #ffe08a; padding:16px; border-radius:12px; margin-bottom:16px;">
+                            <p style="font-size:12px; font-weight:700; color:#8a6d00; margin:0 0 6px;">⚠ Send EXACTLY this amount — no more, no less:</p>
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                <input type="text" id="exactAmount" readonly style="flex:1; padding:12px; border:1px solid #ddd; border-radius:6px; font-family:monospace; background:#fff; font-size:16px; font-weight:700;">
+                                <span id="amtCoin" style="font-weight:700; font-size:14px;"></span>
+                                <button class="copy-btn" type="button" onclick="copyField('exactAmount','Amount')">Copy</button>
+                            </div>
+                            <p style="font-size:11px; color:#a67c00; margin:8px 0 0;">Sending a different amount will fail verification.</p>
+                        </div>
+
+                        <p style="font-size: 13px; font-weight: 600; margin-bottom: 5px;">Send to our <span id="coinLabel">BTC</span> deposit address:</p>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <input type="text" id="walletAddress" value="" readonly style="flex:1; padding:10px; border:1px solid #ddd; border-radius:6px; font-family:monospace; background:#fff; font-size:12px;">
+                            <button class="copy-btn" type="button" onclick="copyField('walletAddress','Address')">Copy</button>
+                        </div>
+
+                        <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #eee;">
+                            <h4 style="font-weight: 700; font-size: 16px; margin-bottom: 10px;">Confirm Your Payment</h4>
+                            <p style="font-size: 12px; color: #666; margin-bottom: 15px;">Once you've sent the exact amount, paste your Transaction Hash (TxID) below to verify it on-chain.</p>
+                            <input type="text" id="txHash" class="crypto-input" placeholder="e.g. 9b9a696324d...">
+                            <button class="verify-btn" type="button" onclick="verifyCrypto()" id="verifyBtn">Verify Payment</button>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <!-- Right Side: Order Summary -->
@@ -270,7 +381,7 @@
                         <span>Total Due</span>
                         <span style="color: #000;">${{ plan.total_balance_due }}</span>
                     </div>
-</div>
+                </div>
             </div>
         </div>
     </div>
@@ -295,7 +406,174 @@
             const style = document.createElement('style');
             style.innerHTML = '@keyframes spin { 100% { transform: rotate(360deg); } }';
             document.head.appendChild(style);
+
+            // Crypto amounts sync
+            var btcRate = {{ btc_rate|default:0 }};
+            var ethRate = {{ eth_rate|default:0 }};
+            var usdtRate = 1;
+            var amt = document.getElementById('id_amount');
+
+            function updateCryptoAmounts() {
+                var v = parseFloat(amt.value) || 0;
+                document.getElementById('amt-BTC').textContent = (v / btcRate).toFixed(8);
+                document.getElementById('amt-ETH').textContent = (v / ethRate).toFixed(8);
+                document.getElementById('amt-USDT').textContent = (v / usdtRate).toFixed(2);
+            }
+
+            if (amt) {
+                amt.addEventListener('input', updateCryptoAmounts);
+                amt.addEventListener('input', function () {
+                    if (typeof resetCryptoSteps === 'function') resetCryptoSteps();
+                });
+                updateCryptoAmounts();
+            }
         });
+
+        // Which methods are enabled
+        var PAYMENT_MODE = "{{ site_content.payment_mode|default:'both'|escapejs }}";
+        var PAYMENT_PURPOSE = "{{ purpose|escapejs }}";
+
+        function switchPayment(method) {
+            var tabCard = document.getElementById('tab-card');
+            var tabCrypto = document.getElementById('tab-crypto');
+            var app = document.getElementById('app');
+            var cryptoApp = document.getElementById('cryptoApp');
+            if (method === 'card') {
+                if (tabCard) tabCard.classList.add('active');
+                if (tabCrypto) tabCrypto.classList.remove('active');
+                if (app) app.classList.remove('hidden');
+                if (cryptoApp) cryptoApp.classList.remove('active');
+            } else {
+                if (tabCrypto) tabCrypto.classList.add('active');
+                if (tabCard) tabCard.classList.remove('active');
+                if (app) app.classList.add('hidden');
+                if (cryptoApp) cryptoApp.classList.add('active');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            if (PAYMENT_MODE === 'crypto') switchPayment('crypto');
+            else switchPayment('card');
+        });
+
+        let currentCrypto = 'BTC';
+        let currentDepositId = null;
+
+        function selectCrypto(coin) {
+            currentCrypto = coin;
+            document.querySelectorAll('.crypto-option').forEach(el => el.classList.remove('selected'));
+            document.getElementById('opt-' + coin).classList.add('selected');
+            resetCryptoSteps();
+        }
+
+        function resetCryptoSteps() {
+            currentDepositId = null;
+            document.getElementById('cryptoStep1').style.display = 'block';
+            document.getElementById('cryptoStep2').style.display = 'none';
+            var tx = document.getElementById('txHash');
+            if (tx) tx.value = '';
+        }
+
+        function copyField(id, label) {
+            var input = document.getElementById(id);
+            input.select();
+            document.execCommand("copy");
+            alert(label + " copied!");
+        }
+
+        function generatePayment() {
+            var amountUsd = parseFloat(document.getElementById('id_amount').value) || 0;
+            if (amountUsd <= 0) {
+                alert("Please enter a valid amount above first.");
+                return;
+            }
+
+            var btn = document.getElementById('genBtn');
+            var originalText = btn.innerText;
+            btn.innerHTML = 'Generating...';
+            btn.style.opacity = '0.7';
+            btn.style.pointerEvents = 'none';
+
+            fetch("{% url 'initiate_crypto_deposit' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                body: JSON.stringify({ crypto_currency: currentCrypto, amount_usd: amountUsd, purpose: PAYMENT_PURPOSE })
+            })
+            .then(r => r.json())
+            .then(data => {
+                btn.innerHTML = originalText;
+                btn.style.opacity = '1';
+                btn.style.pointerEvents = 'auto';
+                if (data.status === 'success') {
+                    currentDepositId = data.deposit_id;
+                    document.getElementById('exactAmount').value = data.exact_amount;
+                    document.getElementById('amtCoin').innerText = data.crypto_currency;
+                    document.getElementById('walletAddress').value = data.address;
+                    document.getElementById('coinLabel').innerText = data.crypto_currency;
+                    document.getElementById('cryptoStep1').style.display = 'none';
+                    document.getElementById('cryptoStep2').style.display = 'block';
+                } else {
+                    alert(data.message || 'Could not generate payment details.');
+                }
+            })
+            .catch(err => {
+                alert("Network error. Please try again.");
+                btn.innerHTML = originalText;
+                btn.style.opacity = '1';
+                btn.style.pointerEvents = 'auto';
+            });
+        }
+
+        function verifyCrypto() {
+            var txHash = document.getElementById('txHash').value.trim();
+            if (!txHash) {
+                alert("Please enter your transaction hash.");
+                return;
+            }
+            if (!currentDepositId) {
+                alert("Please generate your payment details first.");
+                return;
+            }
+
+            var btn = document.getElementById('verifyBtn');
+            var originalText = btn.innerText;
+            btn.innerHTML = 'Verifying on Blockchain...';
+            btn.style.opacity = '0.7';
+            btn.style.pointerEvents = 'none';
+
+            fetch("{% url 'verify_crypto_deposit' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                body: JSON.stringify({ tx_hash: txHash, deposit_id: currentDepositId })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    btn.style.background = '#008033';
+                    btn.innerHTML = 'Verified Successfully!';
+                    setTimeout(() => {
+                        window.location.href = "{% url 'payment_success' %}";
+                    }, 1000);
+                } else {
+                    btn.style.background = '#cc0000';
+                    btn.innerHTML = 'Verification Failed';
+                    alert(data.message);
+                    setTimeout(() => {
+                        btn.style.background = '#111';
+                        btn.innerHTML = originalText;
+                        btn.style.opacity = '1';
+                        btn.style.pointerEvents = 'auto';
+                    }, 2000);
+                }
+            })
+            .catch(err => {
+                alert("Network error.");
+                btn.style.background = '#111';
+                btn.innerHTML = originalText;
+                btn.style.opacity = '1';
+                btn.style.pointerEvents = 'auto';
+            });
+        }
     </script>
 </body>
 </html>

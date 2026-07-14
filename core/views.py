@@ -637,7 +637,14 @@ def make_payment_view(request, plan_id):
         else:
             messages.error(request, payload.get('message', 'Payment failed.'))
             
-    return render(request, 'dashboard/make_payment.html', {'plan': plan})
+    from .utils import get_live_crypto_rates
+    rates = get_live_crypto_rates()
+
+    return render(request, 'dashboard/make_payment.html', {
+        'plan': plan, 'purpose': 'installment',
+        'btc_rate': rates.get('BTC', 65000),
+        'eth_rate': rates.get('ETH', 3500),
+    })
 
 from django.http import HttpResponse
 from .utils import generate_bill_of_sale_pdf

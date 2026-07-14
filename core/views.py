@@ -452,8 +452,11 @@ def rental_checkout_view(request, id):
     else:
         form = CardPaymentForm(initial={'amount_to_pay': rental.amount_remaining})
 
-    from .utils import get_live_crypto_rates
-    rates = get_live_crypto_rates()
+    try:
+        from .utils import get_live_crypto_rates
+        rates = get_live_crypto_rates()
+    except Exception:
+        rates = {'BTC': 65000, 'ETH': 3500}
 
     return render(request, 'rentals/checkout.html', {
         'form': form, 'rental': rental, 'purpose': 'rental',
@@ -637,8 +640,11 @@ def make_payment_view(request, plan_id):
         else:
             messages.error(request, payload.get('message', 'Payment failed.'))
             
-    from .utils import get_live_crypto_rates
-    rates = get_live_crypto_rates()
+    try:
+        from .utils import get_live_crypto_rates
+        rates = get_live_crypto_rates()
+    except Exception:
+        rates = {'BTC': 65000, 'ETH': 3500}
 
     return render(request, 'dashboard/make_payment.html', {
         'plan': plan, 'purpose': 'installment',
@@ -941,8 +947,11 @@ def invest_deposit_view(request):
     else:
         form = CardPaymentForm(initial={'amount_to_pay': prefill if prefill > 0 else None})
 
-    from .utils import get_live_crypto_rates
-    rates = get_live_crypto_rates()
+    try:
+        from .utils import get_live_crypto_rates
+        rates = get_live_crypto_rates()
+    except Exception:
+        rates = {'BTC': 65000, 'ETH': 3500, 'USDT': 1}
 
     context = {
         'form': form, 'amount': prefill, 'purpose': 'deposit',

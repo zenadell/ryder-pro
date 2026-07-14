@@ -451,8 +451,15 @@ def rental_checkout_view(request, id):
                 messages.error(request, payload.get('message', 'Payment failed.'))
     else:
         form = CardPaymentForm(initial={'amount_to_pay': rental.amount_remaining})
-        
-    return render(request, 'rentals/checkout.html', {'form': form, 'rental': rental})
+
+    from .utils import get_live_crypto_rates
+    rates = get_live_crypto_rates()
+
+    return render(request, 'rentals/checkout.html', {
+        'form': form, 'rental': rental, 'purpose': 'rental',
+        'btc_rate': rates.get('BTC', 65000),
+        'eth_rate': rates.get('ETH', 3500),
+    })
 
 @login_required
 def rental_success_view(request, id):

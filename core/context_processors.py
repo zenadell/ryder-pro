@@ -28,4 +28,11 @@ def site_content(request):
     else:
         content_dict['payment_mode'] = 'both'
 
+    # Start the self-ping keep-alive thread on first request (if not already running)
+    try:
+        from .views import _start_keep_alive
+        _start_keep_alive()
+    except Exception:
+        pass
+
     return {'site_content': content_dict}

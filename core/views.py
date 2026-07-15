@@ -1787,5 +1787,41 @@ def add_funds_redirect(request):
 def health_check(request):
     """
     Lightweight endpoint for uptime monitoring to keep the server awake.
+    Also starts a self-ping background thread so the server never sleeps
+    once it has been woken up at least once.
     """
+    _start_keep_alive()
     return JsonResponse({'status': 'ok', 'timestamp': timezone.now().isoformat()})
+
+
+# ── Self-keep-alive: background thread pings /health/ every 10 min ──
+import threading, time as _time, os as _os
+
+_keep_alive_started = False
+_keep_alive_lock = threading.Lock()
+
+def _keep_alive_worker():
+    """Runs in a daemon thread; pings our own health endpoint every 10 min."""
+    import requests as _req
+    # Build the URL from the RENDER_EXTERNAL_URL env var (set by Render) or
+    # fall back to the production domain.
+    base = _os.environ.get('RENDER_EXTERNAL_URL', 'https://www.ryder-pro.com')
+    url = base.rstrip('/') + '/health/'
+    while True:
+        _time.sleep(600)  # 10 minutes
+        try:
+            _req.get(url, timeout=25)
+        except Exception:
+            pass
+
+def _start_keep_alive():
+    global _keep_alive_started
+    if _keep_alive_started:
+        return
+    with _keep_alive_lock:
+        if _keep_alive_started:
+            return
+        t = threading.Thread(target=_keep_alive_worker, daemon=True)
+        t.start()
+        _keep_alive_started = True
+

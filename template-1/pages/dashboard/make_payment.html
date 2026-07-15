@@ -54,16 +54,33 @@
         .verify-btn { width: 100%; background: #111; color: #fff; padding: 15px; border: none; border-radius: 8px; font-weight: 600; margin-top: 20px; cursor: pointer; transition: 0.2s; }
         .verify-btn:hover { background: #333; }
 
+        /* Amount selector — always visible above both payment methods */
+        .amount-selector {
+            background: #fff; border-radius: 16px; padding: 24px;
+            margin-bottom: 25px; box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+            border: 1px solid rgba(0,0,0,0.06);
+        }
+        .amount-selector label { display: block; font-weight: 600; font-size: 14px; color: #111; margin-bottom: 8px; }
+        .amount-selector input { width: 100%; padding: 14px 14px 14px 35px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; color: #111; box-sizing: border-box; }
+        .amount-selector input:focus { outline: none; border-color: #cc0000; }
+        .amount-selector p { font-size: 12px; color: #888; margin: 8px 0 0; }
+
         /* Prevent crypto card overflow on mobile */
         html, body { overflow-x: hidden; max-width: 100%; }
         .crypto-form, .crypto-form * { box-sizing: border-box; }
-        .crypto-form { max-width: 100%; }
-        .crypto-form input, .crypto-input { min-width: 0; max-width: 100%; }
+        .crypto-form { max-width: 100%; overflow: hidden; }
+        .crypto-form input, .crypto-input { min-width: 0; max-width: 100%; box-sizing: border-box; }
         .crypto-form .copy-btn { flex: 0 0 auto; white-space: nowrap; }
-        .crypto-option { min-width: 0; gap: 10px; }
-        .crypto-option > div { min-width: 0; }
-        .crypto-option span { overflow: hidden; text-overflow: ellipsis; }
-        @media (max-width: 991px) { .crypto-form { padding: 20px; } }
+        .crypto-option { min-width: 0; gap: 8px; flex-wrap: wrap; }
+        .crypto-option > div { min-width: 0; overflow: hidden; }
+        .crypto-option > div:last-child { text-align: right; flex-shrink: 0; }
+        .crypto-option span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+        @media (max-width: 991px) {
+            .crypto-form { padding: 16px; }
+            .crypto-option { padding: 12px; font-size: 13px; }
+            .crypto-option > div:last-child span { font-size: 12px; }
+            #cryptoStep2 div[style*="display:flex"] { flex-wrap: wrap; }
+        }
     </style>
 </head>
 <body>
@@ -86,6 +103,16 @@
                     {% if site_content.payment_mode != 'card' %}
                     <div class="payment-tab" id="tab-crypto" onclick="switchPayment('crypto')">Crypto Transfer</div>
                     {% endif %}
+                </div>
+
+                <!-- ═══ Amount Selector (always visible) ═══ -->
+                <div class="amount-selector">
+                    <label for="id_amount">Amount to Pay (USD)</label>
+                    <div style="position: relative;">
+                        <span style="position: absolute; left: 14px; top: 14px; color: #111; font-weight: 600; font-size: 16px;">$</span>
+                        <input type="number" name="amount" value="" placeholder="Enter amount" max="{{ plan.total_balance_due }}" min="1" required id="id_amount" form="checkoutForm">
+                    </div>
+                    <p>Remaining balance: <strong>${{ plan.total_balance_due }}</strong> — pay any amount you want now.</p>
                 </div>
 
                 <!-- ═══ Card Payment Form (Vue ATM app) ═══ -->
@@ -254,14 +281,7 @@
                           </div>
                         </div>
                         
-                        <div style="margin-top: 15px; margin-bottom: 30px; padding: 20px; background: rgba(0,0,0,0.02); border-radius: 12px; border: 1px solid rgba(0,0,0,0.05);">
-                            <label class="card-input__label" for="id_amount">Amount to Pay (USD)</label>
-                            <div style="position: relative;">
-                                <span style="position: absolute; left: 15px; top: 16px; color: #111; font-weight: 600;">$</span>
-                                <input type="number" name="amount" value="{{ plan.total_balance_due }}" max="{{ plan.total_balance_due }}" min="1" class="card-input__input" style="padding-left: 35px;" required id="id_amount">
-                            </div>
-                            <p style="font-size: 12px; color: #666; margin-top: 10px;">Enter the amount you wish to pay towards your installment plan.</p>
-                        </div>
+
                 
                         <button class="card-form__button" id="submitBtn" style="background: #cc0000 !important;">
                           Submit Payment

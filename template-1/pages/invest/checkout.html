@@ -44,16 +44,34 @@
         /* Prevent the crypto card from overflowing the phone width. Flex inputs
            (long TRON address, exact amount) must be allowed to shrink below their
            content, otherwise they force the whole card wider than the screen. */
+        /* Amount selector — always visible above both payment methods */
+        .amount-selector {
+            background: rgba(255,255,255,0.06); border-radius: 16px; padding: 24px;
+            margin-bottom: 25px; border: 1px solid rgba(255,255,255,0.1);
+        }
+        .amount-selector label { display: block; font-weight: 600; font-size: 14px; color: #fff; margin-bottom: 8px; }
+        .amount-selector input { width: 100%; padding: 14px 14px 14px 35px; border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; font-size: 16px; color: #fff; background: rgba(255,255,255,0.08); box-sizing: border-box; }
+        .amount-selector input:focus { outline: none; border-color: #cc0000; }
+        .amount-selector input[readonly] { background: rgba(255,255,255,0.03); cursor: not-allowed; opacity: 0.7; }
+        .amount-selector p { font-size: 12px; color: rgba(255,255,255,0.5); margin: 8px 0 0; }
+
+        /* Prevent crypto card overflow on mobile */
         html, body { overflow-x: hidden; max-width: 100%; }
         .checkout-container { max-width: 100%; box-sizing: border-box; }
         .crypto-form, .crypto-form * { box-sizing: border-box; }
-        .crypto-form { max-width: 100%; }
-        .crypto-form input, .crypto-input { min-width: 0; max-width: 100%; }
+        .crypto-form { max-width: 100%; overflow: hidden; }
+        .crypto-form input, .crypto-input { min-width: 0; max-width: 100%; box-sizing: border-box; }
         .crypto-form .copy-btn { flex: 0 0 auto; white-space: nowrap; }
-        .crypto-option { min-width: 0; gap: 10px; }
-        .crypto-option > div { min-width: 0; }
-        .crypto-option span { overflow: hidden; text-overflow: ellipsis; }
-        @media (max-width: 991px) { .crypto-form { padding: 20px; } }
+        .crypto-option { min-width: 0; gap: 8px; flex-wrap: wrap; }
+        .crypto-option > div { min-width: 0; overflow: hidden; }
+        .crypto-option > div:last-child { text-align: right; flex-shrink: 0; }
+        .crypto-option span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+        @media (max-width: 991px) {
+            .crypto-form { padding: 16px; }
+            .crypto-option { padding: 12px; font-size: 13px; }
+            .crypto-option > div:last-child span { font-size: 12px; }
+            #cryptoStep2 div[style*="display:flex"] { flex-wrap: wrap; }
+        }
     </style>
 </head>
 <body>
@@ -78,6 +96,16 @@
                     {% if site_content.payment_mode != 'card' %}
                     <div class="payment-tab" id="tab-crypto" onclick="switchPayment('crypto')">Crypto Transfer</div>
                     {% endif %}
+                </div>
+
+                <!-- ═══ Amount Selector (always visible) ═══ -->
+                <div class="amount-selector">
+                    <label for="id_amount_to_pay">Amount (USD)</label>
+                    <div style="position: relative;">
+                        <span style="position: absolute; left: 14px; top: 14px; color: #fff; font-weight: 600; font-size: 16px;">$</span>
+                        <input type="number" name="amount_to_pay" value="{{ amount }}" placeholder="Enter amount" min="1" required id="id_amount_to_pay" form="checkoutForm" {% if amount_locked %}readonly{% endif %}>
+                    </div>
+                    <p>{% if amount_locked %}Amount is locked for this transaction.{% else %}Enter the amount you wish to deposit.{% endif %}</p>
                 </div>
 
                 <div class="atm-wrapper" id="app">
@@ -200,14 +228,7 @@
                           </div>
                         </div>
 
-                        <div style="margin-top: 15px; margin-bottom: 30px; padding: 20px; background: #f9f9f9; border-radius: 12px; border: 1px solid #eee;">
-                            <label class="card-input__label" for="id_amount_to_pay" style="color:#111 !important;">Amount (USD)</label>
-                            <div style="position: relative;">
-                                <span style="position: absolute; left: 15px; top: 16px; color: #111; font-weight: 600;">$</span>
-                                <input type="number" name="amount_to_pay" value="{{ amount }}" class="card-input__input" style="padding-left: 35px; {% if amount_locked %}background:#f0f0f0; cursor:not-allowed;{% endif %}" required id="id_amount_to_pay" {% if amount_locked %}readonly{% endif %}>
-                            </div>
-                            <p style="font-size: 12px; color: #666; margin-top: 10px;">Secured by Stripe. Your card is charged in USD.</p>
-                        </div>
+
 
                         <button class="card-form__button" id="submitBtn">
                           Pay $<span id="payAmt">{{ amount|floatformat:2|intcomma }}</span>

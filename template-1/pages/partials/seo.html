@@ -1,3 +1,28 @@
+<!-- Title -->
+<title>{{ page_title|default:'Ryder Pro | Premium Logistics & Fleet Share' }}</title>
+
+<!-- JSON-LD Structured Data for Local Business & SEO -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "name": "Ryder Pro Logistics",
+  "image": "{{ request.scheme }}://{{ request.get_host }}/static/images/ryder-pro-og-default.jpg",
+  "@id": "{{ request.scheme }}://{{ request.get_host }}",
+  "url": "{{ request.scheme }}://{{ request.get_host }}",
+  "telephone": "+18001234567",
+  "description": "Ryder Pro is a premium logistics platform connecting investors with high-yield commercial vehicles, and providing world-class truck rentals and financing.",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "123 Logistics Way",
+    "addressLocality": "Atlanta",
+    "addressRegion": "GA",
+    "postalCode": "30301",
+    "addressCountry": "US"
+  }
+}
+</script>
+
 <!-- Standard SEO Meta Tags -->
 <meta name="description" content="{{ page_description|default:'Ryder Pro is a premium logistics platform connecting investors with high-yield commercial vehicles, and providing world-class truck rentals and financing.' }}">
 <meta name="keywords" content="{{ page_keywords|default:'logistics, investment, trucks, fleet, commercial vehicles, freight, passive income' }}">

@@ -174,6 +174,10 @@ def car_details_view(request, slug):
     
     live_viewers = PageVisit.objects.filter(vehicle=vehicle).count()
     social_proof_mode = 'real'
+    image_url = None
+    if vehicle.images.exists():
+        image_url = request.build_absolute_uri(vehicle.images.first().image.url)
+
     context = {
         'vehicle': vehicle,
         'related_vehicles': related_vehicles,
@@ -184,6 +188,9 @@ def car_details_view(request, slug):
         'review_form': form,
         'live_viewers': live_viewers,
         'social_proof_mode': social_proof_mode,
+        'page_title': f"{vehicle.name} - Rental & Financing | Ryder Pro",
+        'page_description': f"Rent or finance the {vehicle.name}. {vehicle.description[:100]}...",
+        'page_image': image_url,
     }
     return render(request, 'cars/car-details/index.html', context)
 
@@ -212,9 +219,16 @@ def blog_detail_view(request, slug):
     blog = get_object_or_404(BlogPost, slug=slug)
     recent_posts = BlogPost.objects.filter(is_published=True).exclude(id=blog.id).order_by('-published_at')[:3]
     
+    image_url = None
+    if blog.image:
+        image_url = request.build_absolute_uri(blog.image.url)
+
     context = {
         'post': blog,
         'recent_posts': recent_posts,
+        'page_title': f"{blog.title} | Ryder Pro Blog",
+        'page_description': f"{blog.excerpt}",
+        'page_image': image_url,
     }
     return render(request, 'blog/blog-page/index.html', context)
 
@@ -338,7 +352,9 @@ def job_detail_view(request, id):
         
     context = {
         'job': job,
-        'form': form
+        'form': form,
+        'page_title': f"{job.title} Job at Ryder Pro",
+        'page_description': f"We are hiring a {job.title} at Ryder Pro. Apply today!",
     }
     return render(request, 'jobs/detail.html', context)
 

@@ -1,8 +1,13 @@
 from django.urls import path
+from django.contrib.sitemaps.views import sitemap
+from django.views.generic.base import TemplateView
 from . import views
 from . import chat_views
+from .sitemaps import sitemaps
 
 urlpatterns = [
+    path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
+    path('robots.txt', TemplateView.as_view(template_name="robots.txt", content_type="text/plain")),
     path('', views.home_view, name='home'),
     path('about/', views.about_view, name='about'),
     path('contact/', views.contact_view, name='contact'),

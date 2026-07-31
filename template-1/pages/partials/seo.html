@@ -7,7 +7,7 @@
   "@context": "https://schema.org",
   "@type": "LocalBusiness",
   "name": "Ryder Pro Logistics",
-  "image": "{{ request.scheme }}://{{ request.get_host }}/static/images/ryder-pro-og-default.jpg",
+  "image": "{{ request.scheme }}://{{ request.get_host }}/static/images/ryder-pro-logo.png",
   "@id": "{{ request.scheme }}://{{ request.get_host }}",
   "url": "{{ request.scheme }}://{{ request.get_host }}",
   "telephone": "+18001234567",
@@ -33,11 +33,11 @@
 <meta property="og:url" content="{{ request.build_absolute_uri }}">
 <meta property="og:title" content="{{ page_title|default:'Ryder Pro | Premium Logistics & Fleet Share' }}">
 <meta property="og:description" content="{{ page_description|default:'Ryder Pro is a premium logistics platform connecting investors with high-yield commercial vehicles, and providing world-class truck rentals and financing.' }}">
-<meta property="og:image" content="{{ page_image|default:request.scheme|add:'://'|add:request.get_host|add:'/static/images/ryder-pro-og-default.jpg' }}">
+<meta property="og:image" content="{{ page_image|default:request.scheme|add:'://'|add:request.get_host|add:'/static/images/ryder-pro-logo.png' }}">
 
 <!-- Twitter -->
 <meta property="twitter:card" content="summary_large_image">
 <meta property="twitter:url" content="{{ request.build_absolute_uri }}">
 <meta property="twitter:title" content="{{ page_title|default:'Ryder Pro | Premium Logistics & Fleet Share' }}">
 <meta property="twitter:description" content="{{ page_description|default:'Ryder Pro is a premium logistics platform connecting investors with high-yield commercial vehicles, and providing world-class truck rentals and financing.' }}">
-<meta property="twitter:image" content="{{ page_image|default:request.scheme|add:'://'|add:request.get_host|add:'/static/images/ryder-pro-og-default.jpg' }}">
+<meta property="twitter:image" content="{{ page_image|default:request.scheme|add:'://'|add:request.get_host|add:'/static/images/ryder-pro-logo.png' }}">

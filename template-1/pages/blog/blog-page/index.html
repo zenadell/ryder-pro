@@ -8,22 +8,6 @@
     {% include 'partials/seo.html' %}
     <meta charset="utf-8" />
     <link href="https://cdn.prod.website-files.com" rel="preconnect" />
-    
-    
-    <meta content="{{ post.title }} | Ryder Pro Blog" property="og:title" />
-    <meta
-        content="{{ post.excerpt }}"
-        property="og:description" />
-    <meta content="{% if post.featured_image %}{{ post.featured_image.url }}{% else %}/static/images/open-graph.jpg{% endif %}"
-        property="og:image" />
-    <meta content="{{ post.title }}" name="twitter:title" />
-    <meta
-        content="{{ post.excerpt }}"
-        name="twitter:description" />
-    <meta content="{% if post.featured_image %}{{ post.featured_image.url }}{% else %}/static/images/open-graph.jpg{% endif %}"
-        name="twitter:image" />
-    <meta property="og:type" content="article" />
-    <meta content="summary_large_image" name="twitter:card" />
     <meta content="width=device-width, initial-scale=1" name="viewport" />
         <link href="{% static 'css/vendor/carent-wbs.webflow.shared.15fbda294.css' %}"
         rel="stylesheet" type="text/css" />

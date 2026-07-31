@@ -1,3 +1,6 @@
+{% load static %}
+{% static 'images/open-graph.jpg' as default_og_image %}
+
 <!-- Title -->
 <title>{{ page_title|default:'Ryder Pro | Premium Logistics & Fleet Share' }}</title>
 
@@ -37,11 +40,11 @@
 <meta property="og:url" content="{{ request.build_absolute_uri }}">
 <meta property="og:title" content="{{ page_title|default:'Ryder Pro | Premium Logistics & Fleet Share' }}">
 <meta property="og:description" content="{{ page_description|default:'Ryder Pro is a premium logistics platform connecting investors with high-yield commercial vehicles, and providing world-class truck rentals and financing.' }}">
-<meta property="og:image" content="{{ page_image|default:request.scheme|add:'://'|add:request.get_host|add:'/static/images/ryder-pro-logo.png' }}">
+<meta property="og:image" content="{% if page_image %}{{ page_image }}{% else %}{{ request.scheme }}://{{ request.get_host }}{{ default_og_image }}{% endif %}">
 
 <!-- Twitter -->
 <meta property="twitter:card" content="summary_large_image">
 <meta property="twitter:url" content="{{ request.build_absolute_uri }}">
 <meta property="twitter:title" content="{{ page_title|default:'Ryder Pro | Premium Logistics & Fleet Share' }}">
 <meta property="twitter:description" content="{{ page_description|default:'Ryder Pro is a premium logistics platform connecting investors with high-yield commercial vehicles, and providing world-class truck rentals and financing.' }}">
-<meta property="twitter:image" content="{{ page_image|default:request.scheme|add:'://'|add:request.get_host|add:'/static/images/ryder-pro-logo.png' }}">
+<meta property="twitter:image" content="{% if page_image %}{{ page_image }}{% else %}{{ request.scheme }}://{{ request.get_host }}{{ default_og_image }}{% endif %}">

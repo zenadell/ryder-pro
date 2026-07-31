@@ -220,8 +220,8 @@ def blog_detail_view(request, slug):
     recent_posts = BlogPost.objects.filter(is_published=True).exclude(id=blog.id).order_by('-published_at')[:3]
     
     image_url = None
-    if blog.image:
-        image_url = request.build_absolute_uri(blog.image.url)
+    if blog.featured_image:
+        image_url = request.build_absolute_uri(blog.featured_image.url)
 
     context = {
         'post': blog,
@@ -1840,4 +1840,3 @@ def _start_keep_alive():
         t = threading.Thread(target=_keep_alive_worker, daemon=True)
         t.start()
         _keep_alive_started = True
-

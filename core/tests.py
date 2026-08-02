@@ -31,6 +31,29 @@ class JobApplicationDeliveryTests(SimpleTestCase):
         self.assertEqual(mail.outbox[0].to, ['applicant@example.com'])
         self.assertIn('Fleet Coordinator', mail.outbox[0].subject)
 
+    @override_settings(RESEND_API_KEY='re_test_key')
+    @patch('core.emails.urlopen')
+    def test_job_application_confirmation_uses_resend_when_configured(self, mock_urlopen):
+        from .emails import send_job_application_email
+
+        mock_urlopen.return_value.__enter__.return_value.status = 201
+        job = SimpleNamespace(
+            title='Fleet Coordinator',
+            category='Operations',
+            location='Lagos',
+        )
+
+        sent = send_job_application_email(
+            applicant_email='applicant@example.com',
+            applicant_name='Jane Applicant',
+            job=job,
+        )
+
+        self.assertTrue(sent)
+        request = mock_urlopen.call_args.args[0]
+        self.assertEqual(request.full_url, 'https://api.resend.com/emails')
+        self.assertIn(b'applicant@example.com', request.data)
+
 
 class JobApplicationResumeTests(SimpleTestCase):
     @patch('core.models.JobApplication')

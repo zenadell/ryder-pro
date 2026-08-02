@@ -3,17 +3,55 @@ from django.template.loader import render_to_string
 from django.conf import settings
 from django.utils.html import strip_tags
 
+import json
 import logging
 import threading
+from urllib.request import Request, urlopen
 
 
 logger = logging.getLogger(__name__)
 
+
+def _send_message(msg, to_email):
+    """Send through Resend when configured, otherwise use Django SMTP."""
+    resend_api_key = getattr(settings, 'RESEND_API_KEY', '')
+    if not resend_api_key:
+        return msg.send(fail_silently=False)
+
+    html_content = next(
+        (content for content, content_type in msg.alternatives if content_type == 'text/html'),
+        None,
+    )
+    payload = {
+        'from': msg.from_email,
+        'to': [to_email],
+        'subject': msg.subject,
+        'text': msg.body,
+    }
+    if html_content:
+        payload['html'] = html_content
+
+    request = Request(
+        'https://api.resend.com/emails',
+        data=json.dumps(payload).encode('utf-8'),
+        headers={
+            'Authorization': f'Bearer {resend_api_key}',
+            'Content-Type': 'application/json',
+            'User-Agent': 'Ryder-Pro/1.0',
+        },
+        method='POST',
+    )
+    with urlopen(request, timeout=settings.EMAIL_TIMEOUT) as response:
+        if response.status not in (200, 201):
+            raise RuntimeError(f'Resend returned HTTP {response.status}')
+    return 1
+
+
 def _send_email_thread(msg, to_email):
     try:
-        msg.send(fail_silently=False)
-    except Exception as e:
-        print(f"Failed to send email to {to_email}: {str(e)}")
+        _send_message(msg, to_email)
+    except Exception:
+        logger.exception("Email delivery failed for %s", to_email)
 
 def send_ryder_email(to_email, subject, template_name, context):
     """
@@ -142,7 +180,7 @@ def send_job_application_email(applicant_email, applicant_name, job):
             to=[applicant_email]
         )
         msg.attach_alternative(html_content, "text/html")
-        delivered = msg.send(fail_silently=False)
+        delivered = _send_message(msg, applicant_email)
         if delivered != 1:
             raise RuntimeError(f"Email backend accepted {delivered} recipients")
         return True

@@ -212,3 +212,4 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'support@ryder-pro.com')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = f'Ryder Pro <{EMAIL_HOST_USER}>'
 EMAIL_TIMEOUT = 10  # 10 seconds timeout for email connections
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')

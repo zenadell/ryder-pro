@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, Platform, ActivityIndicator, KeyboardAvoidingView, SafeAreaView } from 'react-native';
+import { StyleSheet, View, Text, Platform, ActivityIndicator, KeyboardAvoidingView, Linking, SafeAreaView } from 'react-native';
 import { WebView } from 'react-native-webview';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
@@ -22,6 +22,7 @@ export default function App() {
   const notificationListener = useRef();
   const responseListener = useRef();
   const webViewRef = useRef(null);
+  const externalViewerUrl = useRef('');
 
   useEffect(() => {
     registerForPushNotificationsAsync().then(token => {
@@ -62,6 +63,21 @@ export default function App() {
     }
   };
 
+  const handleNavigationStateChange = ({ url }) => {
+    if (!url.startsWith('https://view.officeapps.live.com/')) {
+      externalViewerUrl.current = '';
+      return;
+    }
+
+    if (externalViewerUrl.current === url) {
+      return;
+    }
+
+    externalViewerUrl.current = url;
+    Linking.openURL(url).catch(error => console.error('Unable to open resume viewer:', error));
+    webViewRef.current?.goBack();
+  };
+
   const injectedJS = `
     document.addEventListener('click', function(event) {
       const link = event.target.closest('a[href]');
@@ -87,6 +103,7 @@ export default function App() {
           style={styles.webview}
           injectedJavaScript={injectedJS}
           onMessage={handleWebViewMessage}
+          onNavigationStateChange={handleNavigationStateChange}
           sharedCookiesEnabled={true}
           thirdPartyCookiesEnabled={true}
           onLoadEnd={() => setIsLoading(false)}

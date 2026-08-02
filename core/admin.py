@@ -163,10 +163,9 @@ class JobApplicationAdmin(admin.ModelAdmin):
         return custom_urls + super().get_urls()
 
     def download_resume_view(self, request, application_id):
-        """Serve the resume file inline within the admin context."""
+        """Stream a resume through the authenticated admin session."""
         import mimetypes
-        import urllib.request
-        from django.http import HttpResponse, Http404
+        from django.http import FileResponse, Http404
         from .models import JobApplication as JA
 
         obj = JA.objects.filter(id=application_id).first()
@@ -174,29 +173,16 @@ class JobApplicationAdmin(admin.ModelAdmin):
             raise Http404("No resume found.")
 
         try:
-            # Get the Cloudinary URL and fetch the file directly
-            file_url = obj.resume.url
-            req = urllib.request.Request(file_url, headers={'User-Agent': 'RyderPro/1.0'})
-            response_data = urllib.request.urlopen(req, timeout=15)
-            content = response_data.read()
-        except Exception as e:
-            print(f"[RESUME] Failed to fetch resume for application {application_id}: {e}")
-            return HttpResponse(
-                '<html><body style="font-family:sans-serif;padding:40px;text-align:center;">'
-                '<h2>Could not load resume</h2>'
-                '<p>The file may have been removed or is temporarily unavailable.</p>'
-                f'<p style="color:#999;font-size:12px;">Error: {e}</p>'
-                '<br><a href="javascript:history.back()" style="color:#417690;font-size:16px;">Go Back</a>'
-                '</body></html>',
-                content_type='text/html'
-            )
+            resume_file = obj.resume.open('rb')
+        except Exception as exc:
+            raise Http404("The resume file is unavailable.") from exc
 
         filename = obj.resume.name.split('/')[-1]
         content_type, _ = mimetypes.guess_type(filename)
         if not content_type:
             content_type = 'application/octet-stream'
 
-        response = HttpResponse(content, content_type=content_type)
+        response = FileResponse(resume_file, content_type=content_type)
         response['Content-Disposition'] = f'inline; filename="{filename}"'
         return response
 

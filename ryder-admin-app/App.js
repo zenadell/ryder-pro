@@ -63,6 +63,12 @@ export default function App() {
   };
 
   const injectedJS = `
+    document.addEventListener('click', function(event) {
+      const link = event.target.closest('a[href]');
+      if (!link || !link.href.startsWith('${BACKEND_URL}')) return;
+      event.preventDefault();
+      window.location.assign(link.href);
+    }, true);
     if (window.location.pathname.indexOf('/admin-chat/') !== -1) {
       window.ReactNativeWebView.postMessage('ADMIN_LOADED');
     }
@@ -82,6 +88,7 @@ export default function App() {
           injectedJavaScript={injectedJS}
           onMessage={handleWebViewMessage}
           sharedCookiesEnabled={true}
+          thirdPartyCookiesEnabled={true}
           onLoadEnd={() => setIsLoading(false)}
         />
         {isLoading && (

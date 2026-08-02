@@ -48,5 +48,21 @@ class JobApplicationResumeTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'application/pdf')
-        self.assertIn('inline;', response['Content-Disposition'])
+        self.assertIn('attachment;', response['Content-Disposition'])
         self.assertEqual(b''.join(response.streaming_content), b'%PDF-1.4 resume')
+
+    @patch('core.models.JobApplication')
+    def test_office_resume_opens_in_a_web_viewer(self, job_application_model):
+        from .admin import JobApplicationAdmin
+
+        resume = Mock()
+        resume.name = 'resumes/jane-applicant.docx'
+        resume.url = 'https://files.example.com/resumes/jane-applicant.docx'
+        application = SimpleNamespace(resume=resume)
+        job_application_model.objects.filter.return_value.first.return_value = application
+        model_admin = JobApplicationAdmin(JobApplication, admin.site)
+
+        response = model_admin.view_resume_view(request=Mock(), application_id=7)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response['Location'].startswith('https://view.officeapps.live.com/'))

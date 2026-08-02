@@ -155,6 +155,11 @@ class JobApplicationAdmin(admin.ModelAdmin):
         from django.urls import path as admin_path
         custom_urls = [
             admin_path(
+                '<int:application_id>/view-resume/',
+                self.admin_site.admin_view(self.view_resume_view),
+                name='jobapplication-view-resume',
+            ),
+            admin_path(
                 '<int:application_id>/download-resume/',
                 self.admin_site.admin_view(self.download_resume_view),
                 name='jobapplication-download-resume',
@@ -162,8 +167,7 @@ class JobApplicationAdmin(admin.ModelAdmin):
         ]
         return custom_urls + super().get_urls()
 
-    def download_resume_view(self, request, application_id):
-        """Stream a resume through the authenticated admin session."""
+    def get_resume_response(self, application_id, as_attachment):
         import mimetypes
         from django.http import FileResponse, Http404
         from .models import JobApplication as JA
@@ -182,17 +186,48 @@ class JobApplicationAdmin(admin.ModelAdmin):
         if not content_type:
             content_type = 'application/octet-stream'
 
-        response = FileResponse(resume_file, content_type=content_type)
-        response['Content-Disposition'] = f'inline; filename="{filename}"'
-        return response
+        return FileResponse(
+            resume_file,
+            as_attachment=as_attachment,
+            filename=filename,
+            content_type=content_type,
+        )
+
+    def view_resume_view(self, request, application_id):
+        """Display PDFs in the browser and Office documents in Office Viewer."""
+        from urllib.parse import quote
+        from django.http import Http404, HttpResponseRedirect
+        from .models import JobApplication as JA
+
+        obj = JA.objects.filter(id=application_id).first()
+        if not obj or not obj.resume:
+            raise Http404("No resume found.")
+
+        filename = obj.resume.name.lower()
+        if filename.endswith(('.doc', '.docx')):
+            office_viewer_url = (
+                'https://view.officeapps.live.com/op/view.aspx?src='
+                f'{quote(obj.resume.url, safe="")}'
+            )
+            return HttpResponseRedirect(office_viewer_url)
+
+        return self.get_resume_response(application_id, as_attachment=False)
+
+    def download_resume_view(self, request, application_id):
+        """Download a resume through the authenticated admin session."""
+        return self.get_resume_response(application_id, as_attachment=True)
 
     def resume_link(self, obj):
         if obj.resume:
             from django.urls import reverse
-            url = reverse('admin:jobapplication-download-resume', args=[obj.id])
+            view_url = reverse('admin:jobapplication-view-resume', args=[obj.id])
+            download_url = reverse('admin:jobapplication-download-resume', args=[obj.id])
             return format_html(
-                '<a href="{}" style="color: #417690; font-weight: bold;">View / Download Resume</a>',
-                url
+                '<a href="{}" style="color: #417690; font-weight: bold;">View Resume</a>'
+                ' &middot; '
+                '<a href="{}" style="font-weight: bold;">Download Resume</a>',
+                view_url,
+                download_url,
             )
         return "No resume uploaded"
     resume_link.short_description = "Resume"

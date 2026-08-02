@@ -111,3 +111,20 @@ def send_failed_payment_notice(user, amount, purpose, reference, reason):
         context
     )
 
+
+def send_job_application_email(applicant_email, applicant_name, job):
+    """Send a confirmation email when someone submits a job application."""
+    from django.utils import timezone
+    context = {
+        'name': applicant_name,
+        'job_title': job.title,
+        'job_category': job.category,
+        'job_location': job.location,
+        'submitted_at': timezone.now().strftime('%B %d, %Y at %I:%M %p'),
+    }
+    return send_ryder_email(
+        applicant_email,
+        f"Application Received: {job.title} at Ryder Pro",
+        'emails/job_application_received.html',
+        context
+    )

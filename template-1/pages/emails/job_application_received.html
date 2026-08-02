@@ -1,0 +1,46 @@
+{% extends "emails/base_email.html" %}
+
+{% block content %}
+    <h1>Application Received ✓</h1>
+    
+    <p>Hi {{ name }},</p>
+    
+    <p>Thank you for applying for the <strong>{{ job_title }}</strong> position at Ryder Pro.</p>
+    
+    <p>We've successfully received your application and our hiring team will carefully review your qualifications. Here's a summary of what we received:</p>
+    
+    <div class="receipt-box" style="margin-top: 20px;">
+        <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+            <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Position</strong></td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee;">{{ job_title }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Category</strong></td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee;">{{ job_category }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>Location</strong></td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee;">{{ job_location }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px 0;"><strong>Submitted</strong></td>
+                <td style="padding: 8px 0;">{{ submitted_at }}</td>
+            </tr>
+        </table>
+    </div>
+    
+    <h2 style="font-size: 16px; margin-top: 30px;">What Happens Next?</h2>
+    
+    <ol style="line-height: 1.8; color: #555;">
+        <li>Our hiring team will review your resume and qualifications.</li>
+        <li>If you're shortlisted, we'll reach out to schedule an interview.</li>
+        <li>You'll receive an email notification with the outcome of your application.</li>
+    </ol>
+    
+    <p style="color: #888; font-size: 13px; margin-top: 20px;">We typically review applications within 3-5 business days. If you have any questions, feel free to contact us at <a href="mailto:support@ryder-pro.com" style="color: #c8102e;">support@ryder-pro.com</a>.</p>
+    
+    <div style="text-align: center; margin-top: 30px;">
+        <a href="https://www.ryder-pro.com/jobs/" class="btn">View More Jobs</a>
+    </div>
+{% endblock %}

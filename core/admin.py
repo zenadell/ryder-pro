@@ -148,7 +148,16 @@ class JobApplicationAdmin(admin.ModelAdmin):
     list_display = ('full_name', 'job', 'email', 'status', 'submitted_at')
     list_filter = ('status', 'submitted_at')
     search_fields = ('full_name', 'email')
-    readonly_fields = ('job', 'full_name', 'email', 'phone', 'resume', 'submitted_at')
+    readonly_fields = ('job', 'full_name', 'email', 'phone', 'resume_link', 'submitted_at')
+    exclude = ('resume',)
+
+    def resume_link(self, obj):
+        if obj.resume:
+            from django.urls import reverse
+            url = reverse('resume_download', args=[obj.id])
+            return format_html('<a href="{}" target="_blank" style="color: #417690; font-weight: bold;">📄 View / Download Resume</a>', url)
+        return "No resume uploaded"
+    resume_link.short_description = "Resume"
 
 @admin.register(FinancingApplication)
 class FinancingApplicationAdmin(admin.ModelAdmin):

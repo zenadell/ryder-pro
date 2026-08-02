@@ -8,11 +8,12 @@ from django.db.models import Q
 from decimal import Decimal, InvalidOperation
 from .paystack_utils import paystack_charge_card, paystack_submit_otp
 from .emails import (
-    send_payment_receipt, send_application_received, send_withdrawal_notice
+    send_payment_receipt, send_application_received, send_withdrawal_notice,
+    send_job_application_email,
 )
 from django.conf import settings
 from .models import (
-    Vehicle, Category, BlogPost, TeamMember, Review, ContactMessage, GalleryImage, Job, TradeInRequest, RentalRequest, Shipment, SiteContent, PageVisit,
+    Vehicle, Category, BlogPost, TeamMember, Review, ContactMessage, GalleryImage, Job, JobApplication, TradeInRequest, RentalRequest, Shipment, SiteContent, PageVisit,
     InstallmentPlan, PaymentTransaction,
     InvestmentAsset, Investment, InvestorWallet, InvestmentTransaction,
     WithdrawalWindow, WithdrawalRequest,
@@ -345,6 +346,12 @@ def job_detail_view(request, id):
             if request.user.is_authenticated:
                 application.user = request.user
             application.save()
+            # Send confirmation email to applicant
+            send_job_application_email(
+                applicant_email=application.email,
+                applicant_name=application.full_name,
+                job=job,
+            )
             messages.success(request, 'Your application has been submitted successfully!')
             return redirect('job_success', id=job.id)
     else:
@@ -1840,3 +1847,37 @@ def _start_keep_alive():
         t = threading.Thread(target=_keep_alive_worker, daemon=True)
         t.start()
         _keep_alive_started = True
+
+
+@staff_member_required
+def resume_download_view(request, application_id):
+    """Serve the applicant's resume file for admin download.
+
+    Instead of linking directly to the Cloudinary raw URL (which can fail
+    in a WebView and leaves the admin stuck), this view reads the file
+    through Django's storage backend and streams it as a download response.
+    """
+    import mimetypes
+    from django.http import HttpResponse, Http404
+
+    application = get_object_or_404(JobApplication, id=application_id)
+    if not application.resume:
+        raise Http404("No resume attached to this application.")
+
+    try:
+        resume_file = application.resume.open('rb')
+        content = resume_file.read()
+        resume_file.close()
+    except Exception:
+        # Fallback: redirect to the URL (better than crashing)
+        from django.http import HttpResponseRedirect
+        return HttpResponseRedirect(application.resume.url)
+
+    filename = application.resume.name.split('/')[-1]
+    content_type, _ = mimetypes.guess_type(filename)
+    if not content_type:
+        content_type = 'application/octet-stream'
+
+    response = HttpResponse(content, content_type=content_type)
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
+    return response

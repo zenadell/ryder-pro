@@ -28,6 +28,7 @@ urlpatterns = [
     path('jobs/', views.jobs_list_view, name='jobs_list'),
     path('jobs/<int:id>/', views.job_detail_view, name='job_detail'),
     path('jobs/<int:id>/success/', views.job_success_view, name='job_success'),
+    path('jobs/resume/<int:application_id>/', views.resume_download_view, name='resume_download'),
     
     path('trade-in/', views.trade_in_view, name='trade_in'),
     path('trade-in/success/', views.trade_in_success_view, name='trade_in_success'),

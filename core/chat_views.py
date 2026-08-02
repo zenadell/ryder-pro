@@ -41,9 +41,15 @@ def _get_or_create_conversation(request):
     if not convo:
         convo = ChatConversation.objects.filter(session_key=skey).exclude(status='closed').order_by('-updated_at').first()
     if not convo:
+        guest_location = request.session.get('guest_location', {})
         convo = ChatConversation.objects.create(
             user=request.user if request.user.is_authenticated else None,
-            session_key=skey, status='ai_active',
+            session_key=skey,
+            status='ai_active',
+            guest_ip_address=guest_location.get('ip') or None,
+            guest_city=guest_location.get('city', ''),
+            guest_country=guest_location.get('country', ''),
+            guest_country_code=guest_location.get('country_code', ''),
         )
     elif request.user.is_authenticated and convo.user_id is None:
         convo.user = request.user
@@ -263,7 +269,12 @@ def api_admin_messages(request, conversation_id):
     msgs = c.messages.exclude(role='system').order_by('created_at')
     
     # Grab user info for the context panel
-    user_info = {'is_guest': True, 'email': '', 'ip': '', 'location': ''}
+    user_info = {
+        'is_guest': not bool(c.user),
+        'email': '',
+        'ip': c.guest_ip_address or '',
+        'location': ', '.join(part for part in (c.guest_city, c.guest_country) if part),
+    }
     if c.user:
         user_info['is_guest'] = False
         user_info['email'] = c.user.email or c.user.username
@@ -369,5 +380,4 @@ def api_admin_register_device(request):
         )
         return JsonResponse({'success': True})
     return JsonResponse({'error': 'Invalid token'}, status=400)
-
 

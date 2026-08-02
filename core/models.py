@@ -762,6 +762,10 @@ class ChatConversation(models.Model):
     ]
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='chat_conversations')
     session_key = models.CharField(max_length=120, db_index=True, help_text="Anonymous session identifier")
+    guest_ip_address = models.GenericIPAddressField(null=True, blank=True)
+    guest_city = models.CharField(max_length=100, blank=True)
+    guest_country = models.CharField(max_length=100, blank=True)
+    guest_country_code = models.CharField(max_length=10, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ai_active')
     assigned_agent = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_chats')
     # Last time each side was typing. Stored in the DB (not in-memory) so the
@@ -867,5 +871,4 @@ class AdminDevice(models.Model):
 
     def __str__(self):
         return f"Device for {self.user.username} ({self.push_token[:10]}...)"
-
 

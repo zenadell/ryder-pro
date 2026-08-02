@@ -13,7 +13,7 @@ from .emails import (
 )
 from django.conf import settings
 from .models import (
-    Vehicle, Category, BlogPost, TeamMember, Review, ContactMessage, GalleryImage, Job, JobApplication, TradeInRequest, RentalRequest, Shipment, SiteContent, PageVisit,
+    Vehicle, Category, BlogPost, TeamMember, Review, ContactMessage, GalleryImage, Job, JobApplication, TradeInRequest, RentalRequest, Shipment, SiteContent, PageVisit, ChatConversation,
     InstallmentPlan, PaymentTransaction,
     InvestmentAsset, Investment, InvestorWallet, InvestmentTransaction,
     WithdrawalWindow, WithdrawalRequest,
@@ -1774,11 +1774,25 @@ from django.utils import timezone
 @csrf_exempt
 def track_location_api(request):
     if request.method == 'POST':
-        if not request.user.is_authenticated:
-            return JsonResponse({'status': 'unauthenticated'})
-            
         try:
             data = json.loads(request.body)
+            if not request.user.is_authenticated:
+                request.session['guest_location'] = {
+                    key: data.get(key, '')
+                    for key in ('ip', 'city', 'country', 'country_code')
+                }
+                request.session.save()
+                ChatConversation.objects.filter(
+                    session_key=request.session.session_key,
+                    user__isnull=True,
+                ).exclude(status='closed').update(
+                    guest_ip_address=data.get('ip') or None,
+                    guest_city=data.get('city', ''),
+                    guest_country=data.get('country', ''),
+                    guest_country_code=data.get('country_code', ''),
+                )
+                return JsonResponse({'status': 'success'})
+
             profile = request.user.profile
             
             # Only update if fields are provided

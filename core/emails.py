@@ -113,21 +113,42 @@ def send_failed_payment_notice(user, amount, purpose, reference, reason):
 
 
 def send_job_application_email(applicant_email, applicant_name, job):
-    """Send a confirmation email when someone submits a job application."""
+    """Send a confirmation email when someone submits a job application.
+    
+    Sends synchronously (not in a thread) so errors are properly surfaced.
+    Still wrapped in try/except so it never crashes the application flow.
+    """
     from django.utils import timezone
-    print(f"[EMAIL] Attempting to send job application email to {applicant_email} for {job.title}")
-    context = {
-        'name': applicant_name,
-        'job_title': job.title,
-        'job_category': job.category,
-        'job_location': job.location,
-        'submitted_at': timezone.now().strftime('%B %d, %Y at %I:%M %p'),
-    }
-    result = send_ryder_email(
-        applicant_email,
-        f"Application Received: {job.title} at Ryder Pro",
-        'emails/job_application_received.html',
-        context
-    )
-    print(f"[EMAIL] Job application email queued={result} for {applicant_email}")
-    return result
+    from django.template.loader import render_to_string
+    from django.utils.html import strip_tags
+    from django.core.mail import EmailMultiAlternatives
+    from django.conf import settings as email_settings
+
+    print(f"[JOB EMAIL] Starting email send to {applicant_email} for job: {job.title}")
+    
+    try:
+        context = {
+            'name': applicant_name,
+            'job_title': job.title,
+            'job_category': job.category,
+            'job_location': job.location,
+            'submitted_at': timezone.now().strftime('%B %d, %Y at %I:%M %p'),
+        }
+
+        html_content = render_to_string('emails/job_application_received.html', context)
+        text_content = strip_tags(html_content)
+        print(f"[JOB EMAIL] Template rendered successfully")
+
+        msg = EmailMultiAlternatives(
+            subject=f"Application Received: {job.title} at Ryder Pro",
+            body=text_content,
+            from_email=email_settings.DEFAULT_FROM_EMAIL,
+            to=[applicant_email]
+        )
+        msg.attach_alternative(html_content, "text/html")
+        msg.send(fail_silently=False)
+        print(f"[JOB EMAIL] Email sent successfully to {applicant_email}")
+        return True
+    except Exception as e:
+        print(f"[JOB EMAIL] FAILED to send email to {applicant_email}: {type(e).__name__}: {e}")
+        return False

@@ -151,11 +151,59 @@ class JobApplicationAdmin(admin.ModelAdmin):
     readonly_fields = ('job', 'full_name', 'email', 'phone', 'resume_link', 'submitted_at')
     exclude = ('resume',)
 
+    def get_urls(self):
+        from django.urls import path as admin_path
+        custom_urls = [
+            admin_path(
+                '<int:application_id>/download-resume/',
+                self.admin_site.admin_view(self.download_resume_view),
+                name='jobapplication-download-resume',
+            ),
+        ]
+        return custom_urls + super().get_urls()
+
+    def download_resume_view(self, request, application_id):
+        """Serve the resume file inline within the admin context."""
+        import mimetypes
+        from django.http import HttpResponse, Http404
+        from .models import JobApplication as JA
+
+        obj = JA.objects.filter(id=application_id).first()
+        if not obj or not obj.resume:
+            raise Http404("No resume found.")
+
+        try:
+            resume_file = obj.resume.open('rb')
+            content = resume_file.read()
+            resume_file.close()
+        except Exception:
+            # If the storage backend fails, show a simple error page with a back link
+            return HttpResponse(
+                '<html><body style="font-family:sans-serif;padding:40px;text-align:center;">'
+                '<h2>Could not load resume</h2>'
+                '<p>The file may have been removed or is temporarily unavailable.</p>'
+                '<a href="javascript:history.back()" style="color:#417690;">Go Back</a>'
+                '</body></html>',
+                content_type='text/html'
+            )
+
+        filename = obj.resume.name.split('/')[-1]
+        content_type, _ = mimetypes.guess_type(filename)
+        if not content_type:
+            content_type = 'application/octet-stream'
+
+        response = HttpResponse(content, content_type=content_type)
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        return response
+
     def resume_link(self, obj):
         if obj.resume:
             from django.urls import reverse
-            url = reverse('resume_download', args=[obj.id])
-            return format_html('<a href="{}" target="_blank" style="color: #417690; font-weight: bold;">📄 View / Download Resume</a>', url)
+            url = reverse('admin:jobapplication-download-resume', args=[obj.id])
+            return format_html(
+                '<a href="{}" style="color: #417690; font-weight: bold;">View / Download Resume</a>',
+                url
+            )
         return "No resume uploaded"
     resume_link.short_description = "Resume"
 

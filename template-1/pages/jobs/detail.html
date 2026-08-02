@@ -33,30 +33,15 @@
             font-size: 14px;
             font-weight: 500;
         }
+        .job-meta-tags .status-open {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
         .job-content h3 { margin-top: 30px; margin-bottom: 15px; font-size: 20px; }
         .job-content p, .job-content ul { line-height: 1.8; color: #444; margin-bottom: 20px; }
         .job-content ul { padding-left: 20px; }
         .job-content ul li { margin-bottom: 8px; }
         .errorlist { color: #d9534f; list-style-type: none; padding-left: 0; font-size: 14px; margin-top: 5px; }
-        .job-info-card {
-            background: #f9f9f9;
-            border-radius: 10px;
-            padding: 25px;
-            margin-bottom: 30px;
-        }
-        .job-info-card h4 {
-            font-size: 14px;
-            text-transform: uppercase;
-            color: #999;
-            margin-bottom: 8px;
-            letter-spacing: 0.5px;
-        }
-        .job-info-card p {
-            font-size: 16px;
-            font-weight: 600;
-            color: #222;
-            margin: 0;
-        }
         .job-info-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -64,25 +49,28 @@
             margin-bottom: 30px;
         }
         .job-highlight {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 15px;
-            background: #fff;
+            padding: 18px 20px;
+            background: #fafafa;
             border: 1px solid #eee;
             border-radius: 8px;
         }
-        .job-highlight .icon {
-            font-size: 22px;
+        .job-highlight .label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #999;
+            margin-bottom: 5px;
         }
-        .job-highlight .text {
-            font-size: 14px;
-            color: #555;
-        }
-        .job-highlight .text strong {
-            display: block;
-            color: #222;
+        .job-highlight .value {
             font-size: 15px;
+            font-weight: 600;
+            color: #222;
+        }
+        .job-info-card {
+            background: #f9f9f9;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 30px;
         }
         .apply-sticky {
             position: sticky;
@@ -102,9 +90,9 @@
             <h1 class="heading-lg" style="margin-bottom: 15px;">{{ job.title }}</h1>
             <div class="job-meta-tags">
                 <span>{{ job.category }}</span>
-                <span>📍 {{ job.location }}</span>
-                {% if job.salary_range %}<span>💰 {{ job.salary_range }}</span>{% endif %}
-                <span style="background-color: #e8f5e9; color: #2e7d32;">🟢 {{ job.get_status_display }}</span>
+                <span>{{ job.location }}</span>
+                {% if job.salary_range %}<span>{{ job.salary_range }}</span>{% endif %}
+                <span class="status-open">{{ job.get_status_display }}</span>
             </div>
             
             <div class="job-detail-grid">
@@ -113,34 +101,22 @@
                     <!-- Quick Info Grid -->
                     <div class="job-info-grid">
                         <div class="job-highlight">
-                            <span class="icon">📍</span>
-                            <div class="text">
-                                <strong>Location</strong>
-                                {{ job.location }}
-                            </div>
+                            <div class="label">Location</div>
+                            <div class="value">{{ job.location }}</div>
                         </div>
                         <div class="job-highlight">
-                            <span class="icon">📂</span>
-                            <div class="text">
-                                <strong>Category</strong>
-                                {{ job.category }}
-                            </div>
+                            <div class="label">Category</div>
+                            <div class="value">{{ job.category }}</div>
                         </div>
                         {% if job.salary_range %}
                         <div class="job-highlight">
-                            <span class="icon">💰</span>
-                            <div class="text">
-                                <strong>Salary Range</strong>
-                                {{ job.salary_range }}
-                            </div>
+                            <div class="label">Salary Range</div>
+                            <div class="value">{{ job.salary_range }}</div>
                         </div>
                         {% endif %}
                         <div class="job-highlight">
-                            <span class="icon">📅</span>
-                            <div class="text">
-                                <strong>Posted</strong>
-                                {{ job.created_at|date:"M d, Y" }}
-                            </div>
+                            <div class="label">Posted</div>
+                            <div class="value">{{ job.created_at|date:"M d, Y" }}</div>
                         </div>
                     </div>
 
@@ -156,7 +132,7 @@
                         <p style="color: #555; font-weight: normal; font-size: 15px; line-height: 1.7; margin-bottom: 0;">
                             Fill out the application form on this page and upload your resume (PDF or DOC). 
                             Our hiring team will review your application and contact you via email within 3-5 business days.
-                            You'll receive an email confirmation immediately after submitting your application.
+                            You will receive an email confirmation immediately after submitting your application.
                         </p>
                     </div>
                 </div>

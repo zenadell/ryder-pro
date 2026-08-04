@@ -1,6 +1,8 @@
 """Ryder AI Assistant — chat endpoint (DeepSeek via the OpenAI-compatible SDK)."""
 import json
 import os
+from urllib.error import URLError
+from urllib.request import urlopen
 
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
@@ -16,6 +18,36 @@ from .chat_tools import TOOLS, dispatch_tool
 
 MAX_TOOL_LOOPS = 6
 HISTORY_LIMIT = 12
+
+
+def _get_client_ip(request):
+    return (
+        request.META.get('HTTP_CF_CONNECTING_IP')
+        or request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
+        or request.META.get('REMOTE_ADDR', '')
+    )
+
+
+def _lookup_location(request):
+    """Resolve the visitor's public IP without depending on browser JavaScript."""
+    ip_address = _get_client_ip(request)
+    if not ip_address or ip_address.startswith(('10.', '127.', '192.168.', '172.16.')):
+        return {}
+
+    try:
+        with urlopen(f'https://ipapi.co/{ip_address}/json/', timeout=3) as response:
+            data = json.loads(response.read().decode('utf-8'))
+    except (URLError, OSError, ValueError, UnicodeDecodeError):
+        return {'ip': ip_address}
+
+    return {
+        'ip': data.get('ip', ip_address),
+        'city': data.get('city', ''),
+        'country': data.get('country_name', ''),
+        'country_code': data.get('country_code', ''),
+        'latitude': data.get('latitude'),
+        'longitude': data.get('longitude'),
+    }
 
 
 def _broadcast_message(convo_id, role, content, created_at):
@@ -41,7 +73,7 @@ def _get_or_create_conversation(request):
     if not convo:
         convo = ChatConversation.objects.filter(session_key=skey).exclude(status='closed').order_by('-updated_at').first()
     if not convo:
-        guest_location = request.session.get('guest_location', {})
+        guest_location = request.session.get('guest_location') or _lookup_location(request)
         convo = ChatConversation.objects.create(
             user=request.user if request.user.is_authenticated else None,
             session_key=skey,
@@ -51,6 +83,15 @@ def _get_or_create_conversation(request):
             guest_country=guest_location.get('country', ''),
             guest_country_code=guest_location.get('country_code', ''),
         )
+        if request.user.is_authenticated and hasattr(request.user, 'profile'):
+            profile = request.user.profile
+            profile.ip_address = guest_location.get('ip') or profile.ip_address
+            profile.city = guest_location.get('city', '') or profile.city
+            profile.country = guest_location.get('country', '') or profile.country
+            profile.country_code = guest_location.get('country_code', '') or profile.country_code
+            profile.latitude = guest_location.get('latitude') or profile.latitude
+            profile.longitude = guest_location.get('longitude') or profile.longitude
+            profile.save()
     elif request.user.is_authenticated and convo.user_id is None:
         convo.user = request.user
         convo.save(update_fields=['user', 'updated_at'])
@@ -380,4 +421,3 @@ def api_admin_register_device(request):
         )
         return JsonResponse({'success': True})
     return JsonResponse({'error': 'Invalid token'}, status=400)
-

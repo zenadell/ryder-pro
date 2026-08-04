@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 
 from django.contrib import admin
 from django.core import mail
-from django.test import SimpleTestCase, override_settings
+from django.test import RequestFactory, SimpleTestCase, override_settings
 
 from .models import JobApplication
 
@@ -53,6 +53,24 @@ class JobApplicationDeliveryTests(SimpleTestCase):
         request = mock_urlopen.call_args.args[0]
         self.assertEqual(request.full_url, 'https://api.resend.com/emails')
         self.assertIn(b'applicant@example.com', request.data)
+
+
+class ChatLocationTests(SimpleTestCase):
+    @patch('core.chat_views.urlopen')
+    def test_location_lookup_uses_the_client_ip_from_cloudflare(self, mock_urlopen):
+        from .chat_views import _lookup_location
+
+        mock_urlopen.return_value.__enter__.return_value.read.return_value = (
+            b'{"ip":"203.0.113.9","city":"Lagos","country_name":"Nigeria",'
+            b'"country_code":"NG","latitude":6.5244,"longitude":3.3792}'
+        )
+        request = RequestFactory().post('/chat/send/', HTTP_CF_CONNECTING_IP='203.0.113.9')
+
+        location = _lookup_location(request)
+
+        self.assertEqual(location['ip'], '203.0.113.9')
+        self.assertEqual(location['city'], 'Lagos')
+        self.assertEqual(location['country'], 'Nigeria')
 
 
 class JobApplicationResumeTests(SimpleTestCase):

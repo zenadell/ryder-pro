@@ -1,3 +1,4 @@
+from django.conf import settings
 from .models import SiteContent
 
 def site_content(request):
@@ -35,4 +36,7 @@ def site_content(request):
     except Exception:
         pass
 
-    return {'site_content': content_dict}
+    return {
+        'site_content': content_dict,
+        'google_site_verification': getattr(settings, 'GOOGLE_SITE_VERIFICATION', ''),
+    }

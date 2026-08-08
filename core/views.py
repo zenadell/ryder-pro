@@ -44,7 +44,13 @@ def home_view(request):
 def about_view(request):
     team_members = TeamMember.objects.all()
     gallery_images = GalleryImage.objects.all()
-    return render(request, 'about/index.html', {'team_members': team_members, 'gallery_images': gallery_images})
+    return render(request, 'about/index.html', {
+        'team_members': team_members,
+        'gallery_images': gallery_images,
+        'page_title': 'About Ryder Pro | Our Story, Mission & Team',
+        'page_description': 'Learn about Ryder Pro — our mission to revolutionize commercial logistics, our experienced leadership team, and our commitment to excellence.',
+        'page_keywords': 'about ryder pro, logistics company, fleet management team, our story',
+    })
 
 def contact_view(request):
     if request.method == 'POST':
@@ -62,7 +68,11 @@ def contact_view(request):
         else:
             messages.error(request, "Please fill in all required fields.")
             
-    return render(request, 'contact/index.html')
+    return render(request, 'contact/index.html', {
+        'page_title': 'Contact Us | Ryder Pro Support & Inquiries',
+        'page_description': 'Get in touch with Ryder Pro. Reach out for vehicle inquiries, rental support, investment questions, or partnership opportunities.',
+        'page_keywords': 'contact ryder pro, customer support, logistics inquiries, fleet rental support',
+    })
 
 def all_cars_view(request):
     vehicles = Vehicle.objects.filter(status='available')
@@ -129,6 +139,9 @@ def all_cars_view(request):
         'min_price': min_price,
         'max_price': max_price,
         'current_sort': sort,
+        'page_title': 'Browse All Vehicles | Rent, Finance & Buy | Ryder Pro',
+        'page_description': 'Explore our full fleet of premium vehicles available for rent, financing, or purchase. Trucks, vans, cars, SUVs, and more at Ryder Pro.',
+        'page_keywords': 'rent vehicles, buy trucks, fleet vehicles, car rental, vehicle financing, commercial trucks',
     }
     return render(request, 'cars/all-cars/index.html', context)
 
@@ -189,8 +202,9 @@ def car_details_view(request, slug):
         'review_form': form,
         'live_viewers': live_viewers,
         'social_proof_mode': social_proof_mode,
-        'page_title': f"{vehicle.name} - Rental & Financing | Ryder Pro",
-        'page_description': f"Rent or finance the {vehicle.name}. {vehicle.description[:100]}...",
+        'page_title': vehicle.seo_title or f"{vehicle.name} - Rental & Financing | Ryder Pro",
+        'page_description': vehicle.seo_description or f"Rent or finance the {vehicle.name}. {vehicle.description[:100]}...",
+        'page_keywords': vehicle.seo_keywords,
         'page_image': image_url,
     }
     return render(request, 'cars/car-details/index.html', context)
@@ -214,7 +228,12 @@ def ping_visit(request, slug):
 
 def blog_list_view(request):
     blogs = BlogPost.objects.filter(is_published=True).order_by('-published_at')
-    return render(request, 'blog/index.html', {'posts': blogs})
+    return render(request, 'blog/index.html', {
+        'posts': blogs,
+        'page_title': 'Blog | Ryder Pro Insights on Logistics, Fleet & Investments',
+        'page_description': 'Stay informed with Ryder Pro blog — expert articles on vehicle rentals, fleet management, logistics tips, and investment strategies.',
+        'page_keywords': 'logistics blog, fleet management tips, vehicle investment, truck rental advice',
+    })
 
 def blog_detail_view(request, slug):
     blog = get_object_or_404(BlogPost, slug=slug)
@@ -227,8 +246,9 @@ def blog_detail_view(request, slug):
     context = {
         'post': blog,
         'recent_posts': recent_posts,
-        'page_title': f"{blog.title} | Ryder Pro Blog",
-        'page_description': f"{blog.excerpt}",
+        'page_title': blog.seo_title or f"{blog.title} | Ryder Pro Blog",
+        'page_description': blog.seo_description or f"{blog.excerpt}",
+        'page_keywords': blog.seo_keywords,
         'page_image': image_url,
     }
     return render(request, 'blog/blog-page/index.html', context)
@@ -257,13 +277,23 @@ def api_arrived(request, tracking_id):
     return JsonResponse({'success': False}, status=400)
 
 def faq_view(request):
-    return render(request, 'faq/index.html')
+    return render(request, 'faq/index.html', {
+        'page_title': 'Frequently Asked Questions | Ryder Pro',
+        'page_description': 'Find answers to common questions about Ryder Pro vehicle rentals, financing options, fleet investments, and our logistics services.',
+        'page_keywords': 'FAQ, frequently asked questions, vehicle rental questions, fleet investment help',
+    })
 
 def privacy_view(request):
-    return render(request, 'privacy/index.html')
+    return render(request, 'privacy/index.html', {
+        'page_title': 'Privacy Policy | Ryder Pro',
+        'page_description': 'Read the Ryder Pro privacy policy. Learn how we collect, use, and protect your personal information.',
+    })
 
 def terms_view(request):
-    return render(request, 'terms/index.html')
+    return render(request, 'terms/index.html', {
+        'page_title': 'Terms of Service | Ryder Pro',
+        'page_description': 'Review the Ryder Pro terms of service covering vehicle rentals, financing, investments, and use of our platform.',
+    })
 
 def custom_404_view(request, exception=None):
     return render(request, 'utilities/404/index.html', status=404)
@@ -331,7 +361,10 @@ def financing_success_view(request, slug):
 def jobs_list_view(request):
     jobs = Job.objects.filter(status='open').order_by('-created_at')
     context = {
-        'jobs': jobs
+        'jobs': jobs,
+        'page_title': 'Careers at Ryder Pro | Join Our Logistics Team',
+        'page_description': 'Explore career opportunities at Ryder Pro. We are hiring drivers, logistics coordinators, mechanics, and more. Apply today!',
+        'page_keywords': 'careers, jobs, logistics jobs, truck driver jobs, hiring, ryder pro careers',
     }
     return render(request, 'jobs/index.html', context)
 
@@ -360,8 +393,9 @@ def job_detail_view(request, id):
     context = {
         'job': job,
         'form': form,
-        'page_title': f"{job.title} Job at Ryder Pro",
-        'page_description': f"We are hiring a {job.title} at Ryder Pro. Apply today!",
+        'page_title': job.seo_title or f"{job.title} Job at Ryder Pro",
+        'page_description': job.seo_description or f"We are hiring a {job.title} at Ryder Pro. Apply today!",
+        'page_keywords': job.seo_keywords,
     }
     return render(request, 'jobs/detail.html', context)
 
@@ -843,6 +877,9 @@ def invest_marketplace_view(request):
         'assets': assets,
         'active_type': asset_type,
         'total_assets': InvestmentAsset.objects.filter(is_active=True).count(),
+        'page_title': 'Fleet Share Marketplace | Invest in Vehicles | Ryder Pro',
+        'page_description': 'Invest in high-yield commercial vehicles and earn daily passive income. Browse trucks, vans, and bikes on the Ryder Pro Fleet Share marketplace.',
+        'page_keywords': 'fleet investment, vehicle shares, passive income, commercial vehicle investment, fleet share',
     }
     return render(request, 'invest/marketplace.html', context)
 
@@ -860,8 +897,9 @@ def invest_asset_detail_view(request, slug):
         'asset': asset,
         'wallet': wallet,
         'related': InvestmentAsset.objects.filter(is_active=True, asset_type=asset.asset_type).exclude(pk=asset.pk)[:3],
-        'page_title': f"{asset.name} | Fleet Share",
-        'page_description': f"Earn {asset.daily_return_percent}% daily passive income by owning shares in the {asset.name}. Total valuation: ${asset.total_value}.",
+        'page_title': asset.seo_title or f"{asset.name} | Fleet Share",
+        'page_description': asset.seo_description or f"Earn {asset.daily_return_percent}% daily passive income by owning shares in the {asset.name}. Total valuation: ${asset.total_value}.",
+        'page_keywords': asset.seo_keywords,
         'page_image': image_url,
     }
     return render(request, 'invest/detail.html', context)

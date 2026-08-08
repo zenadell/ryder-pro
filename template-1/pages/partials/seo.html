@@ -4,6 +4,14 @@
 <!-- Title -->
 <title>{{ page_title|default:'Ryder Pro | Premium Logistics & Fleet Share' }}</title>
 
+<!-- Google Site Verification -->
+{% if google_site_verification %}
+<meta name="google-site-verification" content="{{ google_site_verification }}">
+{% endif %}
+
+<!-- Canonical URL -->
+<link rel="canonical" href="{{ request.build_absolute_uri }}">
+
 <!-- Favicon -->
 <link href="{% static 'images/ryder-pro-logo.png' %}" rel="shortcut icon" type="image/x-icon" />
 <link href="{% static 'images/ryder-pro-logo.png' %}" rel="apple-touch-icon" />

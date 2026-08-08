@@ -100,6 +100,10 @@ class BlogPostAdmin(admin.ModelAdmin):
     search_fields = ('title', 'content')
     list_filter = ('is_published', 'published_at')
     prepopulated_fields = {'slug': ('title',)}
+    fieldsets = (
+        (None, {'fields': ('title', 'slug', 'excerpt', 'content', 'featured_image', 'is_published')}),
+        ('SEO Optimization', {'classes': ('collapse',), 'fields': ('seo_title', 'seo_description', 'seo_keywords'), 'description': 'Optional: Customize how this blog post appears in Google search results.'}),
+    )
 
 # Vehicle Marketplace
 @admin.register(Category)
@@ -124,6 +128,12 @@ class VehicleAdmin(admin.ModelAdmin):
     prepopulated_fields = {'slug': ('make', 'model', 'year')}
     inlines = [VehicleImageInline]
     filter_horizontal = ('features',)
+    fieldsets = (
+        (None, {'fields': ('name', 'slug', 'category', 'make', 'model', 'year', 'price_per_day', 'full_price', 'mileage', 'condition', 'vin', 'financing_eligible', 'minimum_down_payment_percent', 'status', 'is_featured')}),
+        ('Specs', {'fields': ('seats', 'transmission', 'luggage', 'fuel_type', 'engine_type', 'exterior_color', 'interior_color', 'drivetrain')}),
+        ('Content', {'fields': ('description', 'main_image', 'features')}),
+        ('SEO Optimization', {'classes': ('collapse',), 'fields': ('seo_title', 'seo_description', 'seo_keywords'), 'description': 'Optional: Customize how this vehicle appears in Google search results.'}),
+    )
 
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
@@ -142,6 +152,10 @@ class JobAdmin(admin.ModelAdmin):
     list_display = ('title', 'category', 'location', 'status', 'created_at')
     list_filter = ('status', 'category')
     search_fields = ('title', 'description', 'location')
+    fieldsets = (
+        (None, {'fields': ('title', 'category', 'description', 'requirements', 'salary_range', 'location', 'status')}),
+        ('SEO Optimization', {'classes': ('collapse',), 'fields': ('seo_title', 'seo_description', 'seo_keywords'), 'description': 'Optional: Customize how this job listing appears in Google search results.'}),
+    )
 
 @admin.register(JobApplication)
 class JobApplicationAdmin(admin.ModelAdmin):
@@ -288,6 +302,10 @@ class InvestmentAssetAdmin(admin.ModelAdmin):
     list_editable = ('daily_return_percent', 'monthly_return_percent', 'min_investment', 'total_value', 'is_active', 'is_featured')
     search_fields = ('name', 'description')
     prepopulated_fields = {'slug': ('name',)}
+    fieldsets = (
+        (None, {'fields': ('name', 'slug', 'asset_type', 'image', 'description', 'total_value', 'amount_funded', 'min_investment', 'daily_return_percent', 'monthly_return_percent', 'is_active', 'is_featured')}),
+        ('SEO Optimization', {'classes': ('collapse',), 'fields': ('seo_title', 'seo_description', 'seo_keywords'), 'description': 'Optional: Customize how this investment asset appears in Google search results.'}),
+    )
 
 
 @admin.register(Investment)

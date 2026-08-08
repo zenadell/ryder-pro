@@ -15,6 +15,17 @@ else:
     RAW_STORAGE = FileSystemStorage()
     VIDEO_STORAGE = FileSystemStorage()
 
+
+# Abstract SEO mixin — optional overrides for Google search results
+class SEOModel(models.Model):
+    seo_title = models.CharField(max_length=70, blank=True, null=True, help_text="Custom title for Google (max 60 chars recommended). Leave blank to auto-generate.")
+    seo_description = models.CharField(max_length=160, blank=True, null=True, help_text="Custom meta description for Google (max 155 chars recommended). Leave blank to auto-generate.")
+    seo_keywords = models.CharField(max_length=255, blank=True, null=True, help_text="Comma-separated keywords for this page. Leave blank to use defaults.")
+
+    class Meta:
+        abstract = True
+
+
 # Global & Static Content
 class SiteContent(models.Model):
     key = models.SlugField(unique=True, help_text="e.g. 'home_hero_title'")
@@ -75,7 +86,7 @@ class TeamMember(models.Model):
     def __str__(self):
         return self.name
 
-class BlogPost(models.Model):
+class BlogPost(SEOModel):
     title = models.CharField(max_length=255)
     slug = models.SlugField(unique=True, blank=True)
     excerpt = models.TextField()
@@ -118,7 +129,7 @@ class VehicleFeature(models.Model):
     def __str__(self):
         return self.name
 
-class Vehicle(models.Model):
+class Vehicle(SEOModel):
     STATUS_CHOICES = [
         ('available', 'Available'),
         ('reserved', 'Reserved'),
@@ -212,7 +223,7 @@ class GalleryImage(models.Model):
         return self.caption or f"Gallery Image {self.id}"
 
 # Applications & Jobs
-class Job(models.Model):
+class Job(SEOModel):
     STATUS_CHOICES = [
         ('open', 'Open'),
         ('closed', 'Closed'),
@@ -470,7 +481,7 @@ class Shipment(models.Model):
 from dateutil.relativedelta import relativedelta
 
 
-class InvestmentAsset(models.Model):
+class InvestmentAsset(SEOModel):
     """A single logistics vehicle that users can buy a stake in."""
     ASSET_TYPES = [
         ('truck', 'Truck'),

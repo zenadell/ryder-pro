@@ -8,6 +8,7 @@ from .sitemaps import sitemaps
 urlpatterns = [
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
     path('robots.txt', TemplateView.as_view(template_name="robots.txt", content_type="text/plain")),
+    path('googled14ea0b7f40eb5f3.html', views.google_verification_view, name='google_verification'),
     path('', views.home_view, name='home'),
     path('about/', views.about_view, name='about'),
     path('contact/', views.contact_view, name='contact'),

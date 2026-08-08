@@ -22,6 +22,12 @@ from .forms import (
     ContactForm, NewsletterForm, FinancingApplicationForm, JobApplicationForm, TradeInRequestForm, RentalRequestForm, ReviewForm, CardPaymentForm
 )
 
+def google_verification_view(request):
+    """
+    Returns the Google Site Verification HTML string to prove domain ownership.
+    """
+    return HttpResponse("google-site-verification: googled14ea0b7f40eb5f3.html", content_type="text/html")
+
 def home_view(request):
     featured_vehicles = Vehicle.objects.filter(is_featured=True, status='available')[:6]
     latest_blogs = BlogPost.objects.filter(is_published=True).order_by('-published_at')[:3]

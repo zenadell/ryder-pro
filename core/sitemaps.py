@@ -21,7 +21,7 @@ class VehicleSitemap(Sitemap):
     changefreq = 'daily'
 
     def items(self):
-        return Vehicle.objects.filter(is_active=True)
+        return Vehicle.objects.filter(status='available').order_by('-id')
 
     def location(self, obj):
         return reverse('car_details', args=[obj.slug])
@@ -31,10 +31,10 @@ class BlogPostSitemap(Sitemap):
     changefreq = 'weekly'
 
     def items(self):
-        return BlogPost.objects.filter(is_published=True).order_by('-published_date')
+        return BlogPost.objects.filter(is_published=True).order_by('-published_at')
         
     def lastmod(self, obj):
-        return obj.published_date
+        return obj.published_at
 
     def location(self, obj):
         return reverse('blog_detail', args=[obj.slug])
@@ -44,7 +44,7 @@ class JobSitemap(Sitemap):
     changefreq = 'weekly'
 
     def items(self):
-        return Job.objects.filter(is_active=True)
+        return Job.objects.filter(status='open').order_by('-id')
 
     def location(self, obj):
         return reverse('job_detail', args=[obj.id])
